@@ -33,7 +33,7 @@ type
     FListener:nsIStreamListener;
     FCallBacks:nsIInterfaceRequestor;
     FReportToThread:nsIThread;
-    FConnected,FComplete,FAllowPipelining:boolean;
+    FConnected,FComplete,FAllowPipelining,FGotSessionID:boolean;
     FStatus,FSuspendCount,FRedirectionLimit:integer;
     FVerb,FQueryString:AnsiString;
     FRequestHeaders,FResponseHeaders:TResponseHeaders;//both TResponseHeaders?! see Create
@@ -276,6 +276,7 @@ begin
   FOrigURI:=aURI;
   FDocURI:=nil;
   FReferer:=nil;
+  FGotSessionID:=false;
   FData:=TMemoryStream.Create;
   InitializeCriticalSection(FLock);
   FReportPending:=false;
@@ -791,7 +792,8 @@ end;
 
 function TxxmChannel.GetSessionID: WideString;
 begin
-  CheckHeaderNotSent;
+  if not FGotSessionID then CheckHeaderNotSent;
+  FGotSessionID:=true;
   Result:=IntToHex(HInstance,8)+IntToHex(GetCurrentProcessId,8);
 end;
 

@@ -1,3 +1,6 @@
+v1.1.2.?
+- xxmLocal: fixed ContextString(csUserAgent)
+
 v1.1.1.277
 - 'embed HTML syntax': use "<<html>>" instead of "]]<html>[["
 - Web.xxmp: multiple <PreCompileCommand>,<CompileCommand>,<PostCompileCommand> allowed
