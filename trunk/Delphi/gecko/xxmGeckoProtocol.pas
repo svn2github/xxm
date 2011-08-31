@@ -60,7 +60,7 @@ var
   u:nsIStandardURL;
 begin
   NS_GetComponentManager(CompMgr);
-  CompMgr.CreateInstanceByContractID(NS_ISTANDARDURL_CONTRACT,nil,NS_ISTANDARDURL_IID,u);
+  CompMgr.CreateInstanceByContractID(NS_ISTANDARDURL_CONTRACT,nil,nsIStandardURL,u);
   u.Init(URLTYPE_STANDARD,80,aSpec,aOriginCharset,aBaseURI);
   Result:=u as nsIURI;
 end;

@@ -9,11 +9,8 @@ const
   NS_ERR = 1;
   NS_NOENT = 2;
 
-  NS_IMUTABLE_IID:TGUID='{321578d0-03c1-4d95-8821-021ac612d18d}';
-  NS_ISTANDARDURL_IID:TGUID='{babd6cca-ebe7-4329-967c-d6b9e33caa81}';
   NS_ISTANDARDURL_CONTRACT='@mozilla.org/network/standard-url;1';
-  NS_IHTTPCHANNELINTERNAL_IID:TGUID='{3ce040fb-3933-462a-8d62-80b78fbd0809}';
-  NS_IINPUTSTREAMPUMP_IID:TGUID='{400f5468-97e7-4d2b-9c65-a82aecc7ae82}';
+  NS_IHTTPPROTOCOLHANDLER_CONTRACT='@mozilla.org/network/protocol;1?name=http';
   NS_IINPUTSTREAMPUMP_CONTRACT='@mozilla.org/network/input-stream-pump;1';
 
   URLTYPE_STANDARD     = 1;
@@ -61,35 +58,70 @@ type
       aStatus: NSRESULT; aStatusArg: PWideChar); safecall;//wstring?
   end;
 
+  nsIAsyncVerifyRedirectCallback = interface(nsISupports)
+  ['{8d171460-a716-41f1-92be-8c659db39b45}']
+    procedure OnRedirectVerifyCallback(aResult: nsresult); safecall;
+  end;
+
   nsIChannelEventSink = interface(nsISupports)
-  ['{6757d790-2916-498e-aaca-6b668a956875}']
+  ['{a430d870-df77-4502-9570-d46a8de33154}']
     //const REDIRECT_* see above
     procedure onChannelRedirect(oldChannel: nsIChannel;
-      newChannel: nsIChannel; flags: PRUint32); safecall;
+      newChannel: nsIChannel; flags: PRUint32; callback: nsIAsyncVerifyRedirectCallback); safecall;
   end;
 
   nsIHttpChannelInternal = interface(nsISupports)
-  ['{3ce040fb-3933-462a-8d62-80b78fbd0809}']
+  ['{9363fd96-af59-47e8-bddf-1d5e91acd336}']
     function GetDocumentURI: nsIURI; safecall;
     procedure SetDocumentURI(aDocumentURI: nsIURI); safecall;
     procedure getRequestVersion(var major:PRUint32; var minor:PRUint32); safecall;
     procedure getResponseVersion(var major:PRUint32; var minor:PRUint32); safecall;
     procedure setCookie(aCookieHeader:PAnsiChar); safecall;//string?
     procedure setupFallbackChannel(aFallbackKey:PAnsiChar); safecall;//string?
+    function GetForceAllowThirdPartyCookie: PRBool; safecall;
+    procedure SetForceAllowThirdPartyCookie(aForceAllowThirdPartyCookie: PRBool); safecall;
+    function GetCanceled: PRBool; safecall;
+    function GetChannelIsForDownload: PRBool; safecall;
+    procedure SetChannelIsForDownload(aChannelIsForDownload: PRBool); safecall;
+    procedure GetLocalAddress(aLocalAddress: nsAUTF8String); safecall;
+    function GetLocalPort: PRUint32; safecall;
+    procedure GetRemoteAddress(aRemoteAddress: nsAUTF8String); safecall;
+    function GetRemotePort: PRUint32; safecall;
+    procedure setCacheKeysRedirectChain(cacheKeys:pointer); safecall;//StringArray:nsTArray<nsCString>
+    procedure HTTPUpgrade(aProtocolName: nsACString; aListener: nsISupports); safecall; //nsIHttpUpgradeListener
   end;
 
-  nsIInputStreamPump = interface(nsIRequest)
-  ['{400f5468-97e7-4d2b-9c65-a82aecc7ae82}']
-    procedure Init(
-      aStream:nsIInputStream;
-      aStreamPos:int64;
-      aStreamLen:int64;
-      aSegmentSize:cardinal;
-      aSegmentCount:cardinal;
-      aCloseWhenDone:boolean); safecall;
-    procedure AsyncRead(
-      aListener:nsIStreamListener;
-      aListenerContext:nsISupports); safecall;
+  nsIProtocolHandler = interface;
+  nsIProxiedProtocolHandler = interface;
+  nsIHttpProtocolHandler = interface;
+  nsIProxyInfo = interface end;
+  nsIProtocolHandler = interface(nsISupports)
+  ['{15fd6940-8ea7-11d3-93ad-00104ba0fd40}']
+    procedure GetScheme(aScheme: nsACString); safecall;
+    function GetDefaultPort(): PRInt32; safecall;
+    property DefaultPort: PRInt32 read GetDefaultPort;
+    function GetProtocolFlags(): PRUint32; safecall;
+    property ProtocolFlags: PRUint32 read GetProtocolFlags;
+    function NewURI(const aSpec: nsACString; const aOriginCharset: PAnsiChar; aBaseURI: nsIURI): nsIURI; safecall;
+    function NewChannel(aURI: nsIURI): nsIChannel; safecall;
+    function AllowPort(port: PRInt32; const scheme: PAnsiChar): PRBool; safecall;
+  end;
+
+  nsIProxiedProtocolHandler = interface(nsIProtocolHandler)
+  ['{0a24fed4-1dd2-11b2-a75c-9f8b9a8f9ba7}']
+    function NewProxiedChannel(uri: nsIURI; proxyInfo: nsIProxyInfo): nsIChannel; safecall;
+  end;
+
+  nsIHttpProtocolHandler = interface(nsIProxiedProtocolHandler)
+  ['{9814fdf0-5ac3-11e0-80e3-0800200c9a66}']
+    procedure GetUserAgent(aUserAgent: nsACString); safecall;
+    procedure GetAppName(aAppName: nsACString); safecall;
+    procedure GetAppVersion(aAppVersion: nsACString); safecall;
+    procedure GetProduct(aProduct: nsACString); safecall;
+    procedure GetProductSub(aProductSub: nsACString); safecall;
+    procedure GetPlatform(aPlatform: nsACString); safecall;
+    procedure GetOscpu(aOscpu: nsACString); safecall;
+    procedure GetMisc(aMisc: nsACString); safecall;
   end;
 
 procedure SetCString(x:nsACString;v:AnsiString);
