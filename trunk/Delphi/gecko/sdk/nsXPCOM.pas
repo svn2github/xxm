@@ -2965,7 +2965,7 @@ type
   end;
 
   nsIURI = interface(nsISupports)
-  ['{395fe045-7d18-4adb-a3fd-af98c8a1af11}']
+  ['{12120b20-0929-40e9-88cf-6e08766e8b23}']
     procedure GetSpec(aSpec: nsAUTF8String); safecall;
     procedure SetSpec(const aSpec: nsAUTF8String); safecall;
     procedure GetPrePath(aPrePath: nsAUTF8String); safecall;
@@ -3078,7 +3078,7 @@ type
   end;
 
   nsIHttpHeaderVisitor = interface(nsISupports)
-  ['{0cf40717-d7c1-4a94-8c1e-d6c9734101bb}']
+  ['{35412859-b9d9-423c-8866-2d4559fdd2be}']
     procedure VisitHeader(const aHeader: nsACString; const aValue: nsACString); safecall;
   end;
 

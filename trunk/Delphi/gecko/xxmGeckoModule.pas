@@ -23,8 +23,8 @@ type
   end;
 
   //ported from http://mxr.mozilla.org/mozilla-central/source/xpcom/components/Module.h
-  TXPCOMModule=packed record
-    //kVersion:integer;//=9; static;
+  TXPCOMModule=record
+    //kVersion:integer=...; static; //see below
     mVersion:cardinal;//kModuleVersion
     mCIDs:^TCIDEntry;//pointer to first in array, last should be nil
     mContractIDs:^TContractIDEntry;//pointer to first in array, last should be nil
@@ -47,13 +47,14 @@ const
     (contractid:nil;cid:nil;)
   );
 
-  Categories:array[0..1] of TCategoryEntry=(
-    (category:'profile-after-change';entry:'xxmGeckoDev';value:'@mozilla.org/network/protocol;1?name=xxm'),
+  Categories:array[0..0] of TCategoryEntry=(
+    //'http-startup-category'?
+    //(category:'profile-after-change';entry:'xxmGeckoDev';value:'@mozilla.org/network/protocol;1?name=xxm'),
     (category:nil;entry:nil;value:nil;)
   );
 
   NSModuleData:TXPCOMModule=(
-    mVersion:9;
+    mVersion:7; //keep up-to-date with firefox version
     mCIDs:@CIDs[0];
     mContractIDs:@ContractIDs[0];
     mCategoryEntries:@Categories[0];

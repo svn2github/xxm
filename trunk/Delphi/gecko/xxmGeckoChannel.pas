@@ -139,6 +139,7 @@ type
     //nsIUploadChannel
     procedure SetUploadStream(aStream: nsIInputStream; const aContentType: nsACString; aContentLength: PRInt32); safecall;
     function GetUploadStream(): nsIInputStream; safecall;
+    //TODO: nsIUploadChannel2
     //nsIAsyncVerifyRedirectCallback
     procedure OnRedirectVerifyCallback(aResult: nsresult); safecall;
     //nsIInputStream (attention: interface on channel object for convenience)
@@ -211,8 +212,7 @@ type
 
   TxxmListenerCall=(lcActivate,lcStart,lcData,lcStop,lcAbort,lcRedirect);
 
-  TxxmListenerCaller=class(TInterfacedObject,
-    nsIRunnable)
+  TxxmListenerCaller=class(TInterfacedObject, nsIRunnable)
   private
     FOwner:TxxmChannel;
     FCall:TxxmListenerCall;
@@ -887,8 +887,6 @@ begin
 end;
 
 procedure TxxmChannel.RedirectSync;
-const
-  LOAD_REPLACE=$40000;//1 shl 18
 var
   h:nsIHttpChannel;
   hi:nsIHttpChannelInternal;

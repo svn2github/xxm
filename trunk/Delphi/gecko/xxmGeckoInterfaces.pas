@@ -25,6 +25,49 @@ const
   REDIRECT_PERMANENT  = $2;
   REDIRECT_INTERNAL   = $4;
 
+  //load flags
+  //from nsIRequest.idl
+  LOAD_NORMAL = $00000000;
+  LOAD_BACKGROUND = $00000001;//1 shl 0
+  INHIBIT_CACHING = $00000080;//1 shl 7
+  INHIBIT_PERSISTENT_CACHING = $00000100;//1 shl 8
+  LOAD_BYPASS_CACHE = $00000200;//1 shl 9
+  LOAD_FROM_CACHE = $00000400;//1 shl 10
+  VALIDATE_ALWAYS = $00000800;//1 shl 11
+  VALIDATE_NEVER = $00001000;//1 shl 12
+  VALIDATE_ONCE_PER_SESSION = $00002000;//1 shl 13
+  LOAD_ANONYMOUS = $00004000;//1 shl 14
+  //from nsIChannel.idl
+  LOAD_DOCUMENT_URI = $00010000;//1 shl 16;
+  LOAD_RETARGETED_DOCUMENT_URI = $00020000;//1 shl 17
+  LOAD_REPLACE = $00040000;//1 shl 18
+  LOAD_INITIAL_DOCUMENT_URI = $00080000;//1 shl 19
+  LOAD_TARGETED = $00100000;//1 shl 20
+  LOAD_CALL_CONTENT_SNIFFERS = $00200000;//1 shl 21
+  LOAD_CLASSIFY_URI = $00400000;//1 shl 22
+
+  //protocol flags, from nsIProtocolHandler.idl
+  URI_STD = $00000000;
+  URI_NORELATIVE = $00000001;//1 shl 0
+  URI_NOAUTH = $00000002;//1 shl 1
+  URI_INHERITS_SECURITY_CONTEXT = $00000010;//1 shl 4
+  URI_FORBIDS_AUTOMATIC_DOCUMENT_REPLACEMENT = $00000020;//1 shl 5
+
+  URI_LOADABLE_BY_ANYONE = $00000040;//1 shl 6
+  URI_DANGEROUS_TO_LOAD = $00000080;//1 shl 7
+  URI_IS_UI_RESOURCE = $00000100;//1 shl 8
+  URI_IS_LOCAL_FILE = $00000200;//1 shl 9
+  URI_LOADABLE_BY_SUBSUMERS = $00004000;//1 shl 14
+
+  URI_NON_PERSISTABLE = $00000400;//1 shl 10
+  URI_DOES_NOT_RETURN_DATA = $00000800;//1 shl 11
+  URI_IS_LOCAL_RESOURCE = $00001000;//1 shl 12
+  URI_OPENING_EXECUTES_SCRIPT = $00002000;//1 shl 13
+  ALLOWS_PROXY = $00000004;//1 shl 2
+  ALLOWS_PROXY_HTTP = $00000008;//1 shl 3
+
+  NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX='@mozilla.org/network/protocol;1?name=';
+
 type
   nsIMutable = interface(nsISupports)
   ['{321578d0-03c1-4d95-8821-021ac612d18d}']
@@ -38,7 +81,7 @@ type
     //const URLTYPE_STANDARD        = 1;
     //const URLTYPE_AUTHORITY       = 2;
     //const URLTYPE_NO_AUTHORITY    = 3;
-    procedure Init(aUrlType, aDefaultPort: PRInt32;aSpec: nsACString;
+    procedure Init(aUrlType, aDefaultPort: PRInt32; aSpec: nsACString;
       aOriginCharset: PAnsiChar; aBaseURI: nsIURI); safecall;
   end;
 
@@ -94,7 +137,7 @@ type
   nsIProtocolHandler = interface;
   nsIProxiedProtocolHandler = interface;
   nsIHttpProtocolHandler = interface;
-  nsIProxyInfo = interface end;
+  nsIProxyInfo = interface(nsISupports) end;
   nsIProtocolHandler = interface(nsISupports)
   ['{15fd6940-8ea7-11d3-93ad-00104ba0fd40}']
     procedure GetScheme(aScheme: nsACString); safecall;
