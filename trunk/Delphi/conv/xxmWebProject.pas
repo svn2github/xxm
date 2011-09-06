@@ -11,7 +11,7 @@ type
   private
     Data:DOMDocument;
     DataStartSize:integer;
-    DataFileName,FProjectName,FRootFolder,FSrcFolder,FProtoPathDef,FProtoPath:AnsiString;
+    DataFileName,FProjectName,FRootFolder,FSrcFolder,FHandlerPath,FProtoPathDef,FProtoPath:AnsiString;
     RootNode,DataFiles:IXMLDOMElement;
     Modified:boolean;
     Signatures:TStringList;
@@ -113,7 +113,7 @@ begin
         while (i<>0) and (FRootFolder[i]<>PathDelim) do dec(i);
         FProjectName:=Copy(FRootFolder,i+1,Length(FRootFolder)-i-1);
         s:='<XxmWebProject>'#13#10#9'<ProjectName></ProjectName>'#13#10#9+
-          '<CompileCommand>dcc32 -U..\..\public -Q [[ProjectName]].dpr</CompileCommand>'#13#10'</XxmWebProject>';
+          '<CompileCommand>dcc32 -U[[HandlerPath]]public -Q [[ProjectName]].dpr</CompileCommand>'#13#10'</XxmWebProject>';
         f:=TFileStream.Create(FRootFolder+DataFileName,fmCreate);
         try
           f.Write(s[1],Length(s));
@@ -126,7 +126,8 @@ begin
           SXxmWebProjectNotFound,'__',SourcePath,[]));
    end;
 
-  FProtoPathDef:=GetSelfPath+ProtoDirectory+PathDelim;
+  FHandlerPath:=GetSelfPath;
+  FProtoPathDef:=FHandlerPath+ProtoDirectory+PathDelim;
   FSrcFolder:=FRootFolder+SourceDirectory+PathDelim;
 
   Signatures:=TStringList.Create;
@@ -670,10 +671,12 @@ var
       StringReplace(
       StringReplace(
       StringReplace(
+      StringReplace(
         cmd,
           '[[ProjectName]]',FProjectName,[rfReplaceAll]),
           '[[SrcPath]]',FSrcFolder,[rfReplaceAll]),
-          '[[ProjectPath]]',FRootFolder,[rfReplaceAll])
+          '[[ProjectPath]]',FRootFolder,[rfReplaceAll]),
+          '[[HandlerPath]]',FHandlerPath,[rfReplaceAll])
           //more?
       ),
       nil,nil,true,NORMAL_PRIORITY_CLASS,nil,PAnsiChar(fld),si,pi)) then
