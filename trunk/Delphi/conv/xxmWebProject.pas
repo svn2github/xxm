@@ -51,8 +51,7 @@ type
 
 implementation
 
-uses Variants, ComObj,
-  xxmUtilities, xxmProtoParse, xxmPageParse, IniFiles;
+uses Variants, ComObj, xxmUtilities, xxmProtoParse, xxmPageParse, IniFiles, xxmCommonUtils;
 
 { TXxmWebProject }
 
@@ -299,7 +298,7 @@ begin
         //TODO: setting no pas subdirs?
 
         //TODO: proto signature? (setting?)
-        s:=Signature(FRootFolder+fn);
+        s:=GetFileSignature(FRootFolder+fn);
         if Rebuild or (Signatures.Values[uname]<>s) or not(
           FileExists(FSrcFolder+upath+uname+DelphiExtension)) then
          begin
@@ -374,7 +373,7 @@ begin
         upath:=VarToStr(xFile.getAttribute('UnitPath'));
         fn:=upath+uname+DelphiExtension;
 
-        s:=Signature(FRootFolder+fn);
+        s:=GetFileSignature(FRootFolder+fn);
         if Signatures.Values[uname]<>s then
          begin
           Signatures.Values[uname]:=s;
@@ -397,7 +396,7 @@ begin
       while xFile<>nil do
        begin
         fn:=ForceNode(xFile,'Path','',-1).text;
-        s:=Signature(FRootFolder+fn);
+        s:=GetFileSignature(FRootFolder+fn);
         uname:=':'+StringReplace(fn,'=','_',[rfReplaceAll]);
         if Signatures.Values[uname]<>s then
          begin
