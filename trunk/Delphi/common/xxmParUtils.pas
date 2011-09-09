@@ -271,11 +271,11 @@ end;
 
 procedure TStreamNozzle.Flush;
 const
-  FlushTreshold=$1000;
+  FlushThreshold=$1000;
 var
   l:integer;
 begin
-  if Index>FlushTreshold then
+  if Index>FlushThreshold then
    begin
     l:=Size-Index+1;
     Move(Data[Index],Data[1],l);
@@ -386,7 +386,7 @@ begin
   p:=0;
   while Ensure(l) and (p<>l) do
    begin
-    Flush;//depends on flush treshold
+    Flush;//depends on flush threshold
     p:=0;
     while (p<l) and (Data[p+Index]=Boundary[p+1]) do inc(p);
     if p<>l then inc(Index);

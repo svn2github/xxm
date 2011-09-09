@@ -86,7 +86,7 @@ resourcestring
 
 const
   HTTPMaxHeaderLines=$400;
-  PostDataTreshold=$100000;
+  PostDataThreshold=$100000;
 
 procedure XxmRunServer;
 type
@@ -321,7 +321,7 @@ begin
     if x<>'' then
      begin
       si:=StrToInt(x);
-      if si<PostDataTreshold then
+      if si<PostDataThreshold then
         s:=TMemoryStream.Create
       else
        begin
