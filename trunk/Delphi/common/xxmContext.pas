@@ -331,7 +331,7 @@ begin
       FAutoEncoding:=aeContentDefined;//?
      end;
    end;
-  SendHTML(s);
+  SendRaw(s);
 end;
 
 function TXxmGeneralContext.GetContentType: WideString;
