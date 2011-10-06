@@ -50,7 +50,7 @@ type
     procedure SetCookie(Name,Value:WideString; KeepSeconds:cardinal;
       Comment,Domain,Path:WideString; Secure,HttpOnly:boolean); overload; override;
 
-    function GetProjectEntry(ProjectName: WideString):TXxmProjectEntry; override;
+    function GetProjectEntry:TXxmProjectEntry; override;
     procedure AddResponseHeader(Name, Value: WideString); override;
 
     function GetRequestHeaders:IxxmDictionaryEx;
@@ -265,8 +265,7 @@ begin
   end;
 end;
 
-function TXxmHostedContext.GetProjectEntry(
-  ProjectName: WideString): TXxmProjectEntry;
+function TXxmHostedContext.GetProjectEntry: TXxmProjectEntry;
 begin
   Result:=XxmProjectCache.GetProject(FProjectName);
 end;

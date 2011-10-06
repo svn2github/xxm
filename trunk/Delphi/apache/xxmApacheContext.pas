@@ -28,7 +28,7 @@ type
     //procedure SetCookie2();
     procedure SendHeader; override;
     procedure SendRaw(Data: WideString); override;
-    function GetProjectEntry(ProjectName: WideString):TXxmProjectEntry; override;
+    function GetProjectEntry:TXxmProjectEntry; override;
     procedure AddResponseHeader(Name: WideString; Value: WideString); override;
     procedure SetStatus(Code:integer;Text:WideString); override;
     //IxxmHttpHeaders
@@ -139,8 +139,7 @@ begin
   end;
 end;
 
-function TxxmApacheContext.GetProjectEntry(
-  ProjectName: WideString): TXxmProjectEntry;
+function TxxmApacheContext.GetProjectEntry: TXxmProjectEntry;
 begin
   Result:=XxmProjectCache.GetProject(FProjectName);
 end;
