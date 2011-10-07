@@ -247,55 +247,63 @@ begin
          end;
         inc(b2);
        end;
-      if SquareB or AngleB and (a2<l) then
+      if b2>l then
        begin
-        //close tag found also
-        if AngleB then
-         begin
-          ps:=psBody;
-          AddSection(a1,a2-a1-1,n1,psHTML);
-          AddSection(b1,b2-b1-1,n2,ps);
-          a2:=b2;
-         end
-        else //SquareB or (i=l)
-         begin
-          bx:=b1;
-          if bx=a2 then //opener was AngleB
-           begin
-            ps:=psBody;
-            dec(bx);
-           end
-          else
-            case char(FData[bx]) of
-              '[':begin ps:=psSquareBracketsOpen; SquareB:=b2-b1=1; end;
-              ']':begin ps:=psSquareBracketsClose; SquareB:=b2-b1=1; end;
-              '!':ps:=psHeader;
-              '@':ps:=psUses;
-              ':':ps:=psDefinitions;
-              '_':ps:=psFooter;
-              '#':ps:=psSendHTML;
-              '=':ps:=psSend;
-              '/','?':ps:=psComment;
-              //'&$%*^+|;.,
-              else
-               begin
-                ps:=psBody;
-                dec(bx);
-               end;
-            end;
-          if SquareB then
-           begin
-            AddSection(a1,a2-a1-1,n1,psHTML);
-            AddSection(bx+1,b2-bx-2,n2,ps);
-            a2:=b2+1;
-           end
-          else
-            AddSection(a1,a2-a1,n1,psHTML);
-         end;
-        a1:=a2;
+        //end reached
+        AddSection(a1,a2-a1-1,n1,psHTML);
+        AddSection(b1,b2-b1,n2,psBody);
+        a1:=b2;
+        a2:=b2;
        end
       else
-        a2:=l+1;
+        if ((SquareB or AngleB) and (a2<l)) or (b2>l) then
+         begin
+          //close tag found also
+          if AngleB or (b2>l) then
+           begin
+            AddSection(a1,a2-a1-1,n1,psHTML);
+            AddSection(b1,b2-b1-1,n2,psBody);
+            a2:=b2;
+           end
+          else //SquareB
+           begin
+            bx:=b1;
+            if bx=a2 then //opener was AngleB
+             begin
+              ps:=psBody;
+              dec(bx);
+             end
+            else
+              case char(FData[bx]) of
+                '[':begin ps:=psSquareBracketsOpen; SquareB:=b2-b1=1; end;
+                ']':begin ps:=psSquareBracketsClose; SquareB:=b2-b1=1; end;
+                '!':ps:=psHeader;
+                '@':ps:=psUses;
+                ':':ps:=psDefinitions;
+                '_':ps:=psFooter;
+                '#':ps:=psSendHTML;
+                '=':ps:=psSend;
+                '/','?':ps:=psComment;
+                //'&$%*^+|;.,
+                else
+                 begin
+                  ps:=psBody;
+                  dec(bx);
+                 end;
+              end;
+            if SquareB then
+             begin
+              AddSection(a1,a2-a1-1,n1,psHTML);
+              AddSection(bx+1,b2-bx-2,n2,ps);
+              a2:=b2+1;
+             end
+            else
+              AddSection(a1,a2-a1,n1,psHTML);
+           end;
+          a1:=a2;
+         end
+        else
+          a2:=l+1;
      end;
    end;
   AddSection(a1,l-a1+1,n1,psHTML);
