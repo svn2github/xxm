@@ -40,7 +40,6 @@ procedure TxxmService.ServiceStart(Sender: TService;
 var
   p:integer;
   r:TRegistry;
-  AllowLoadCopy:boolean;
   s:string;
 const
   ParameterKey:array[TXxmHttpRunParameters] of string=(
@@ -50,7 +49,7 @@ const
     '');
 begin
   p:=80;//default
-  AllowLoadCopy:=true;//default
+  GlobalAllowLoadCopy:=true;//default
   r:=TRegistry.Create;
   try
     r.RootKey:=HKEY_LOCAL_MACHINE;
@@ -58,11 +57,10 @@ begin
     s:=ParameterKey[rpPort];
     if r.ValueExists(s) then p:=r.ReadInteger(s) else r.WriteInteger(s,p);
     s:=ParameterKey[rpLoadCopy];
-    if r.ValueExists(s) then AllowLoadCopy:=r.ReadBool(s) else r.WriteBool(s,AllowLoadCopy);
+    if r.ValueExists(s) then GlobalAllowLoadCopy:=r.ReadBool(s) else r.WriteBool(s,GlobalAllowLoadCopy);
   finally
     r.Free;
   end;
-  XxmProjectCache:=TXxmProjectCache.Create(AllowLoadCopy);
   FServer:=TXxmHTTPServer.Create(nil);
   FServer.LocalPort:=IntToStr(p);
   FServer.Open;

@@ -105,13 +105,11 @@ const
 var
   Server:TxxmHttpServer;
   i,j,Port:integer;
-  AllowLoadCopy:boolean;
   s,t:AnsiString;
   Msg:TMsg;
   par:TXxmHttpRunParameters;
 begin
   Port:=80;//default
-  AllowLoadCopy:=true;//default
 
   for i:=1 to ParamCount do
    begin
@@ -125,14 +123,14 @@ begin
       rpPort:
         Port:=StrToInt(Copy(s,j+1,Length(s)-j));
       rpLoadCopy:
-        AllowLoadCopy:=Copy(s,j+1,Length(s)-j)<>'0';
+        GlobalAllowLoadCopy:=Copy(s,j+1,Length(s)-j)<>'0';
       //add new here
       rp_Unknown: raise Exception.Create('Unknown setting: '+t);
     end;
    end;
 
   CoInitialize(nil);
-  XxmProjectCache:=TXxmProjectCache.Create(AllowLoadCopy);
+  XxmProjectCache:=TXxmProjectCache.Create;
   Server:=TxxmHttpServer.Create(nil);
   try
     Server.LocalPort:=IntToStr(Port);
@@ -274,7 +272,7 @@ begin
 
     ProcessRequestHeaders;
 
-    //if XxmProjectCache=nil ? assert created by XxmRunServer
+    if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCache.Create;
 
     //TODO: RequestHeaders['Host']?
     l:=Length(FURI);

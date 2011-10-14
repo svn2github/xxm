@@ -18,7 +18,6 @@ type
   TXxmProjectCache=class(TObject)
   private
     FLock:TRTLCriticalSection;
-    FAllowLoadCopy:boolean;
     ProjectCacheSize:integer;
     ProjectCache:array of TXxmProjectCacheEntry;
     FRegFilePath,FRegSignature:AnsiString;
@@ -28,7 +27,7 @@ type
     function FindProject(Name:WideString):integer;
     function LoadRegistry:IXMLDOMElement;
   public
-    constructor Create(AllowLoadCopy:boolean);
+    constructor Create;
     destructor Destroy; override;
 
     function GetProject(Name:WideString):TXxmProjectCacheEntry;
@@ -46,6 +45,7 @@ type
 
 var
   XxmProjectCache:TXxmProjectCache;
+  GlobalAllowLoadCopy:boolean;
 
 implementation
 
@@ -97,17 +97,16 @@ end;
 
 { TXxmProjectCache }
 
-constructor TXxmProjectCache.Create(AllowLoadCopy:boolean);
+constructor TXxmProjectCache.Create;
 var
   i:integer;
 begin
-  inherited Create;
+  inherited;
   ProjectCacheSize:=0;
   InitializeCriticalSection(FLock);
   //assert coinitialize called?
   FRegDoc:=CoDOMDocument.Create;
   FRegSignature:='-';
-  FAllowLoadCopy:=AllowLoadCopy;
 
   SetLength(FRegFilePath,$400);
   SetLength(FRegFilePath,GetModuleFileNameA(HInstance,PAnsiChar(FRegFilePath),$400));
@@ -222,7 +221,7 @@ begin
       Result:=TXxmProjectCacheEntry.Create(
         Name,
         y.text,
-        FAllowLoadCopy and (VarToStr((x as IXMLDOMElement).getAttribute('LoadCopy'))<>'0'));//='1'));
+        GlobalAllowLoadCopy and (VarToStr((x as IXMLDOMElement).getAttribute('LoadCopy'))<>'0'));//='1'));
 
       Result.FSignature:=VarToStr((x as IXMLDOMElement).getAttribute('Signature'));
 
@@ -268,6 +267,7 @@ begin
 end;
 
 initialization
+  GlobalAllowLoadCopy:=true;//default
   //XxmProjectCache:=TXxmProjectCache.Create;//moved to project source
 finalization
   XxmProjectCache.Free;
