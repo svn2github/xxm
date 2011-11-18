@@ -433,6 +433,7 @@ begin
         else
           inc(x);
        end;
+      FFileAgent.ReportProgress(FieldName,FileName,s);
      end;
    end;
   Len:=Done+Index-(Pos+1);
