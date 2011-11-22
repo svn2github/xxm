@@ -26,6 +26,7 @@ type
     FCookieIdx: TParamIndexes;
     FQueryStringIndex:integer;
     FKeepConnection:boolean;
+    FBuffer:TMemoryStream;
     procedure HandleRequest;
   protected
 
@@ -40,6 +41,8 @@ type
     procedure SetCookie(Name: WideString; Value: WideString); overload; override;
     procedure SetCookie(Name,Value:WideString; KeepSeconds:cardinal;
       Comment,Domain,Path:WideString; Secure,HttpOnly:boolean); overload; override;
+    procedure SetBufferSize(ABufferSize: Integer); override;
+    procedure Flush; override;
 
     function GetProjectEntry:TXxmProjectEntry; override;
     procedure SendHeader; override;
@@ -200,11 +203,17 @@ begin
   FSessionID:='';//see GetSessionID
   FURI:='';//see Execute
   FRedirectPrefix:='';
+  FBuffer:=nil;
 end;
 
 procedure TXxmHttpContext.EndRequest;
 begin
   inherited;
+  if FBuffer<>nil then
+   begin
+    FBuffer.Free;
+    FBuffer:=nil;
+   end;
   if FReqHeaders<>nil then
    begin
     (FReqHeaders as IUnknown)._Release;
@@ -521,19 +530,15 @@ begin
     if CheckSendStart then
       case FAutoEncoding of
         aeUtf8:
-         begin
-          l:=3;
-          SetLength(d,l);
-          Move(Utf8ByteOrderMark[1],d[0],l);
-          FSocket.SendBuf(d[0],l);
-         end;
+          if FBuffer=nil then
+            FSocket.SendBuf(PAnsiChar(Utf8ByteOrderMark)^,3)
+          else
+            FBuffer.Write(Utf8ByteOrderMark[1],3);
         aeUtf16:
-         begin
-          l:=2;
-          SetLength(d,l);
-          Move(Utf16ByteOrderMark[1],d[0],l);
-          FSocket.SendBuf(d[0],l);
-         end;
+          if FBuffer=nil then
+            FSocket.SendBuf(PAnsiChar(Utf16ByteOrderMark)^,2)
+          else
+            FBuffer.Write(Utf16ByteOrderMark[1],2);
       end;
     case FAutoEncoding of
       aeUtf16:
@@ -541,7 +546,6 @@ begin
         l:=Length(Data)*2;
         SetLength(d,l);
         Move(Data[1],d[0],l);
-        FSocket.SendBuf(d[0],l);
        end;
       aeUtf8:
        begin
@@ -549,7 +553,6 @@ begin
         l:=Length(s);
         SetLength(d,l);
         Move(s[1],d[0],l);
-        FSocket.SendBuf(d[0],l);
        end;
       else
        begin
@@ -557,9 +560,15 @@ begin
         l:=Length(s);
         SetLength(d,l);
         Move(s[1],d[0],l);
-        FSocket.SendBuf(d[0],l);
        end;
     end;
+    if FBuffer=nil then
+      FSocket.SendBuf(d[0],l)
+    else
+     begin
+      FBuffer.Write(d[0],l);
+      if FBuffer.Position>=FBufferSize then Flush;
+     end;
    end;
 end;
 
@@ -570,6 +579,7 @@ begin
   //if s.Size<>0 then
    begin
     CheckSendStart;
+    if FBufferSize<>0 then Flush;
     //no autoencoding here
     os:=TOleStream.Create(s);
     try
@@ -653,6 +663,41 @@ end;
 procedure TXxmHttpContext.PostProcessRequest;
 begin
   //inheritants can perform pre-page-build logging or checking here
+end;
+
+procedure TXxmHttpContext.Flush;
+var
+  i:int64;
+begin
+  if FBuffer<>nil then
+   begin
+    i:=FBuffer.Position;
+    if i<>0 then
+     begin
+      FSocket.SendBuf(FBuffer.Memory^,i);
+      FBuffer.Position:=0;
+     end;
+   end;
+end;
+
+procedure TXxmHttpContext.SetBufferSize(ABufferSize: Integer);
+begin
+  inherited;
+  if ABufferSize=0 then
+   begin
+    if FBuffer<>nil then
+     begin
+      Flush;
+      FBuffer.Free;
+      FBuffer:=nil;
+     end;
+   end
+  else
+   begin
+    if FBuffer=nil then FBuffer:=TMemoryStream.Create;//TODO: tmp file when large buffer
+    if FBuffer.Position>ABufferSize then Flush;
+    FBuffer.Size:=ABufferSize;
+   end;
 end;
 
 end.

@@ -27,6 +27,7 @@ type
     FPostData: TStream;
     FPostTempFile: AnsiString;
     StatusSet: boolean;
+    FBufferSize: integer;
 
     { IXxmContext }
     function GetURL: WideString;
@@ -67,6 +68,10 @@ type
     procedure SetCookie(Name: WideString; Value: WideString); overload; virtual; abstract;
     procedure SetCookie(Name,Value:WideString; KeepSeconds:cardinal;
       Comment,Domain,Path:WideString; Secure,HttpOnly:boolean); overload; virtual; abstract;
+
+    function GetBufferSize: integer;
+    procedure SetBufferSize(ABufferSize: integer); virtual;
+    procedure Flush; virtual; abstract;
 
     { IxxmParameterCollection }
     procedure AddParameter(Param: IUnknown);//IxxmParameter
@@ -162,6 +167,7 @@ begin
   StatusSet:=false;
   FProjectName:='';//parsed from URL later
   FFragmentName:='';//parsed from URL later
+  FBufferSize:=0;//TOOD: from project settings?
 end;
 
 procedure TXxmGeneralContext.EndRequest;
@@ -260,6 +266,7 @@ begin
           FPage:=nil;
         end;
      end;
+    if FBufferSize<>0 then Flush;
    end
   else
     try
@@ -276,6 +283,7 @@ begin
       //build page
       FBuilding:=FPage;
       FPage.Build(Self,nil,[],[]);//any parameters?
+      if FBufferSize<>0 then Flush;
 
       //any content?
       if not FHeaderSent then
@@ -284,7 +292,6 @@ begin
         AddResponseHeader('Content-Length','0');
         SendHeader;
        end;
-
     finally
       FBuilding:=nil;
       //let project decide to free or not
@@ -629,6 +636,17 @@ begin
     else
       FParams.FileProgressStep:=Step;
    end;
+end;
+
+function TXxmGeneralContext.GetBufferSize: integer;
+begin
+  Result:=FBufferSize;
+end;
+
+procedure TXxmGeneralContext.SetBufferSize(ABufferSize: integer);
+begin
+  FBufferSize:=ABufferSize;
+  //TODO: flush?
 end;
 
 { TXxmCrossProjectIncludeCheck }
