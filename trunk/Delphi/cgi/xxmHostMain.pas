@@ -397,6 +397,7 @@ begin
     aeIso8859:FResHeaders['Content-Length']:=IntToStr(Length(AnsiString(RedirBody)));
   end;
   SendRaw(RedirBody);
+  if FBufferSize<>0 then Flush;  
   raise EXxmPageRedirected.Create(RedirectURL);
 end;
 

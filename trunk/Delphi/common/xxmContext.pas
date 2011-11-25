@@ -283,7 +283,6 @@ begin
       //build page
       FBuilding:=FPage;
       FPage.Build(Self,nil,[],[]);//any parameters?
-      if FBufferSize<>0 then Flush;
 
       //any content?
       if not FHeaderSent then
@@ -359,6 +358,7 @@ begin
      end;
    end;
   SendRaw(s);
+  if FBufferSize<>0 then Flush;
 end;
 
 function TXxmGeneralContext.GetContentType: WideString;

@@ -213,6 +213,7 @@ begin
    begin
     FBuffer.Free;
     FBuffer:=nil;
+    //TODO: keep buffers on a pool? (by BufferSize?)
    end;
   if FReqHeaders<>nil then
    begin
@@ -357,7 +358,7 @@ begin
 
   except
     on e:EXxmPageRedirected do
-      ;//assert output done
+      Flush;//assert output done
     on EXxmAutoBuildFailed do
       ;//assert output done
     on e:Exception do
@@ -501,11 +502,11 @@ var
   NewURL,RedirBody:WideString;
 begin
   inherited;
-  SetStatus(301,'Moved Permanently');
+  SetStatus(302,'Object moved');//SetStatus(301,'Moved Permanently');
   //TODO: move this to execute's except?
   NewURL:=RedirectURL;
   if Relative and (NewURL<>'') and (NewURL[1]='/') then NewURL:=FRedirectPrefix+NewURL;
-  RedirBody:='<a href="'+HTMLEncode(NewURL)+'">'+HTMLEncode(NewURL)+'</a>'#13#10;
+  RedirBody:='<h1>Object moved</h1><p><a href="'+HTMLEncode(NewURL)+'">'+HTMLEncode(NewURL)+'</a></p>'#13#10;
   FResHeaders['Location']:=NewURL;
   case FAutoEncoding of
     aeUtf8:FResHeaders['Content-Length']:=IntToStr(Length(UTF8Encode(RedirBody))+3);
@@ -513,6 +514,7 @@ begin
     aeIso8859:FResHeaders['Content-Length']:=IntToStr(Length(AnsiString(RedirBody)));
   end;
   SendRaw(RedirBody);
+  if FBufferSize<>0 then Flush;
   raise EXxmPageRedirected.Create(RedirectURL);
 end;
 

@@ -274,6 +274,7 @@ begin
   AddResponseHeader('Location',NewURL);
   //TODO: move this to execute's except?
   SendRaw('<a href="'+HTMLEncode(NewURL)+'">'+HTMLEncode(NewURL)+'</a>'#13#10);
+  if FBufferSize<>0 then Flush;
   raise EXxmPageRedirected.Create(RedirectURL);
 end;
 
