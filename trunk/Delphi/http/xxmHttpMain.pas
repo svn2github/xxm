@@ -97,6 +97,9 @@ const
   HTTPMaxHeaderLines=$400;
   PostDataThreshold=$100000;
 
+var
+  HttpSelfVersion:AnsiString;  
+
 procedure XxmRunServer;
 const
   ParameterKey:array[TXxmHttpRunParameters] of AnsiString=(
@@ -114,6 +117,7 @@ var
 begin
   Port:=80;//default
 
+  //process command line parameters
   for i:=1 to ParamCount do
    begin
     s:=ParamStr(i);
@@ -132,6 +136,13 @@ begin
     end;
    end;
 
+  //build HTTP version string
+  i:=Length(SelfVersion);
+  while (i<>0) and (SelfVersion[i]<>' ') do dec(i);
+  HttpSelfVersion:=StringReplace(Copy(SelfVersion,1,i-1),' ','_',[rfReplaceAll])+
+    '/'+Copy(SelfVersion,i+1,Length(SelfVersion)-i);
+
+  //
   CoInitialize(nil);
   XxmProjectCache:=TXxmProjectCache.Create;
   Server:=TxxmHttpServer.Create(nil);
@@ -641,7 +652,7 @@ begin
 
   //data (Content-Length
 
-  FResHeaders['Server']:=SelfVersion; //X-Powered-By?
+  FResHeaders['Server']:=HttpSelfVersion; //X-Powered-By?
   FURL:=FReqHeaders['Host'];
   if FURL='' then
    begin
