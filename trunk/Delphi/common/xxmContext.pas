@@ -113,6 +113,7 @@ type
   EXxmIncludeFragmentNotFound=class(Exception);
   EXxmIncludeCrossProjectDisabled=class(Exception);
   EXxmParametersAlreadyParsed=class(Exception);
+  EXxmBufferSizeInvalid=class(Exception);
 
 var
   //see xxmSettings
@@ -132,6 +133,7 @@ const //resourcestring?
   SXxmIncludeFragmentNotFound='Include fragment not found "__"';
   SXxmIncludeCrossProjectDisabled='Cross-project includes not enabled';
   SXxmParametersAlreadyParsed='Can''t attach progress agent, parameters already parsed';
+  SXxmBufferSizeInvalid='BufferSize exceeds maximum';
 
 { TXxmGeneralContext }
 
@@ -290,7 +292,10 @@ begin
         ForceStatus(204,'No Content');
         AddResponseHeader('Content-Length','0');
         SendHeader;
-       end;
+       end
+      else
+        if FBufferSize<>0 then Flush;
+        
     finally
       FBuilding:=nil;
       //let project decide to free or not
@@ -644,9 +649,13 @@ begin
 end;
 
 procedure TXxmGeneralContext.SetBufferSize(ABufferSize: integer);
+const
+  MaxBufferSize=$100000;
 begin
+  if (ABufferSize<0) or (ABufferSize>MaxBufferSize) then
+    raise EXxmBufferSizeInvalid.Create(SXxmBufferSizeInvalid);
   FBufferSize:=ABufferSize;
-  //TODO: flush?
+  //TODO: flush? inheritants should if needed
 end;
 
 { TXxmCrossProjectIncludeCheck }
