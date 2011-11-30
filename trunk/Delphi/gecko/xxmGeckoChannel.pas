@@ -445,7 +445,7 @@ begin
           'URL',HTMLEncode(FURL),
           'POSTDATA',x,
           'QUERYSTRING',FQueryString,
-          'VERSION',ContextString(csVersion)
+          'VERSION',SelfVersion
         ]);
        end;
   end;
