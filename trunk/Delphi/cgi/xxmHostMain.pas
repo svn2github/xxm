@@ -3,8 +3,8 @@ unit xxmHostMain;
 interface
 
 uses
-  SysUtils, ActiveX, xxm, Classes, xxmContext, xxmPReg,
-  xxmHttpPReg, xxmParams, xxmParUtils, xxmHeaders;
+  SysUtils, ActiveX, xxm, Classes, xxmContext, xxmThreadPool,
+  xxmPReg, xxmHttpPReg, xxmParams, xxmParUtils, xxmHeaders;
 
 type
   TXxmPostDataStream=class(TCustomMemoryStream)
@@ -19,7 +19,7 @@ type
     procedure SetSize(NewSize: Integer); override;
   end;
 
-  TXxmHostedContext=class(TXxmGeneralContext, IxxmHttpHeaders)
+  TXxmHostedContext=class(TXxmQueueContext, IxxmHttpHeaders)
   private
     FPipeIn,FPipeOut:THandle;
     FCGIValues:array of record
@@ -63,7 +63,7 @@ type
     constructor Create(PipeIn,PipeOut:THandle);
     destructor Destroy; override;
 
-    procedure Execute;
+    procedure Execute; override;
   end;
 
   EXxmMaximumHeaderLines=class(Exception);
@@ -73,7 +73,7 @@ type
 
 implementation
 
-uses Windows, Variants, ComObj, xxmCommonUtils, xxmThreadPool;
+uses Windows, Variants, ComObj, xxmCommonUtils;
 
 resourcestring
   SXxmMaximumHeaderLines='Maximum header lines exceeded.';
