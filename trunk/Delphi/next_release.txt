@@ -1,3 +1,6 @@
+v1.1.5.285
+- bug fixed: parameters were parsed from request body multiple times
+
 v1.1.4.284
 - upload progress monitoring interface
 - new IXxmContext members: BufferSize, Flush
