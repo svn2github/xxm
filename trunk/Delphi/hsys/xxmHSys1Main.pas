@@ -1,10 +1,13 @@
-unit xxmHostMain;
+unit xxmHSys1Main;
 
 interface
 
 uses
-  SysUtils, ActiveX, xxm, Classes, xxmContext, xxmThreadPool,
-  xxmPReg, xxmHttpPReg, xxmParams, xxmParUtils, xxmHeaders;
+  SysUtils, ActiveX, xxm, Classes, xxmContext, xxmPReg, xxmThreadPool,
+  xxmHSysPReg, xxmParams, xxmParUtils, xxmHeaders, httpapi1;
+
+const
+  XxmHSys1ContextDataSize=$1000;
 
 type
   TXxmPostDataStream=class(TCustomMemoryStream)
@@ -19,23 +22,19 @@ type
     procedure SetSize(NewSize: Integer); override;
   end;
 
-  TXxmHostedContext=class(TXxmQueueContext, IxxmHttpHeaders)
+  TXxmHSys1Context=class(TXxmQueueContext, IxxmHttpHeaders)
   private
-    FPipeIn,FPipeOut:THandle;
-    FCGIValues:array of record
-      Name,Value:AnsiString;
-    end;
-    FCGIValuesSize,FCGIValuesCount:integer;
-    FReqHeaders:TRequestHeaders;
+    FData:array[0..XxmHSys1ContextDataSize-1] of byte;
+    FHSysQueue:THandle;
+    FReq:PHTTP_REQUEST;
     FResHeaders:TResponseHeaders;
     FConnected:boolean;
-    FURI,FURLPrefix,FRedirectPrefix,FSessionID:AnsiString;
+    FURI,FRedirectPrefix,FSessionID:AnsiString;
     FCookieParsed: boolean;
     FCookie: AnsiString;
     FCookieIdx: TParamIndexes;
     FQueryStringIndex:integer;
     FBuffer:TMemoryStream;
-    function GetCGIValue(Name:AnsiString):AnsiString;
   protected
     procedure SendRaw(Data: WideString); override;
     procedure SendStream(s:IStream); override;
@@ -58,9 +57,9 @@ type
     function GetRequestHeaders:IxxmDictionaryEx;
     function GetResponseHeaders:IxxmDictionaryEx;
   public
-    Queue:TXxmHostedContext;
+    Queue:TXxmHSys1Context;
 
-    constructor Create(PipeIn,PipeOut:THandle);
+    constructor Create(HSysQueue:THandle);
     destructor Destroy; override;
 
     procedure Execute; override;
@@ -73,7 +72,7 @@ type
 
 implementation
 
-uses Windows, Variants, ComObj, xxmCommonUtils;
+uses Windows, Variants, ComObj, xxmCommonUtils, WinSock;
 
 resourcestring
   SXxmMaximumHeaderLines='Maximum header lines exceeded.';
@@ -82,15 +81,22 @@ resourcestring
 const
   HTTPMaxHeaderLines=$400;
 
-{ TXxmHostedContext }
+{ TXxmHSys1Context }
 
-constructor TXxmHostedContext.Create(PipeIn,PipeOut:THandle);
+constructor TXxmHSys1Context.Create(HSysQueue:THandle);
+var
+  l:cardinal;
 begin
   inherited Create('');//empty here, see Execute
   Queue:=nil;//used by thread pool
-  FPipeIn:=PipeIn;
-  FPipeOut:=PipeOut;
-  FReqHeaders:=nil;
+
+  FHSysQueue:=HSysQueue;
+  FReq:=PHTTP_REQUEST(@FData[0]);
+  ZeroMemory(FReq,XxmHSys1ContextDataSize);
+  HttpCheck(HttpReceiveHttpRequest(HSysQueue,HTTP_NULL_ID,
+    0,//HTTP_RECEIVE_REQUEST_FLAG_FLUSH_BODY,
+    FReq,XxmHSys1ContextDataSize,l,nil));
+
   FResHeaders:=TResponseHeaders.Create;
   (FResHeaders as IUnknown)._AddRef;
   FConnected:=true;
@@ -99,112 +105,34 @@ begin
   FSessionID:='';//see GetSessionID
   FBuffer:=nil;
   FRedirectPrefix:='';
-  FCGIValuesSize:=0;
-  FCGIValuesCount:=0;
 end;
 
-destructor TXxmHostedContext.Destroy;
+destructor TXxmHSys1Context.Destroy;
 begin
-  FlushFileBuffers(FPipeOut);
-  CloseHandle(FPipeIn);
-  CloseHandle(FPipeOut);
   if FBuffer<>nil then
    begin
     FBuffer.Free;
     FBuffer:=nil;
-   end;
-  if FReqHeaders<>nil then
-   begin
-    (FReqHeaders as IUnknown)._Release;
-    FReqHeaders:=nil;
    end;
   if FResHeaders<>nil then
    begin
     (FResHeaders as IUnknown)._Release;
     FResHeaders:=nil;
    end;
-  SetLength(FCGIValues,0);
   inherited;
 end;
 
-procedure TXxmHostedContext.Execute;
+procedure TXxmHSys1Context.Execute;
 var
-  i,j,k,l,m:integer;
-  l1:cardinal;
-  x,y:AnsiString;
-const
-  CGIValuesGrowStep=$100;
+  i,j,l:integer;
+  x:AnsiString;
 begin
   try
-    //read CGI values
-    if not(ReadFile(FPipeIn,l,4,l1,nil)) then RaiseLastOSError;
-    SetLength(x,l);
-    if not(ReadFile(FPipeIn,x[1],l,l1,nil)) then RaiseLastOSError;
-    //process values
-    i:=1;
-    m:=0;
-    while (i<l) do
-     begin
-      j:=i;
-      while (j<=l) and (x[j]<>'=') do inc(j);
-      k:=j+1;
-      while (k<=l) and (x[k]<>#0) do inc(k);
-      if (j-i>4) and (Copy(x,i,5)='HTTP_') then
-       begin
-        y:=y+x[i+5]+LowerCase(StringReplace(Copy(x,i+6,j-i-6),'_','-',[rfReplaceAll]))+': '+Copy(x,j+1,k-j-1)+#13#10;
-       end
-      else
-        if j<=l then
-         begin
-          if FCGIValuesCount=FCGIValuesSize then
-           begin
-            inc(FCGIValuesSize,CGIValuesGrowStep);
-            SetLength(FCGIValues,FCGIValuesSize);
-           end;
-          FCGIValues[FCGIValuesCount].Name:=Copy(x,i,j-i);
-          FCGIValues[FCGIValuesCount].Value:=Copy(x,j+1,k-j-1);
-          inc(FCGIValuesCount);
-         end;
-      i:=k+1;
-      inc(m);
-      if m=HTTPMaxHeaderLines then
-        raise EXxmMaximumHeaderLines.Create(SXxmMaximumHeaderLines);
-     end;
-    y:=y+#13#10;
-
-    FReqHeaders:=TRequestHeaders.Create(y);
-    (FReqHeaders as IUnknown)._AddRef;
-
-    x:=GetCGIValue('SERVER_PROTOCOL');//http or https
-    i:=1;
-    l:=Length(x);
-    while (i<=l) and (x[i]<>'/') do inc(i);
-    y:=FReqHeaders['Host'];
-    if y='' then y:='localhost';//if not port=80 then +':'+?
-    FURLPrefix:=LowerCase(Copy(x,1,i-1))+'://'+y;
-
-    x:=GetCGIValue('SCRIPT_NAME');
-    y:=GetCGIValue('REQUEST_URI');
-    l:=Length(x);
-    if x=Copy(y,1,l) then
-     begin
-      FURI:=Copy(y,l+1,Length(y)-l);
-      FURLPrefix:=FURLPrefix+x;
-     end
-    else
-     begin
-      FURI:=y;
-      //FURLPrefix:= should be ok
-     end;
-
-    FURL:=FURLPrefix+FURI;
-     
-    //'Authorization' ?
-    //'If-Modified-Since' ? 304
-    //'Connection: Keep-alive' ? with sent Content-Length
+    FURL:=FReq.CookedUrl.pFullUrl;
+    FURI:=FReq.pRawUrl;
 
     FResHeaders['X-Powered-By']:=SelfVersion;
-    if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCache.Create;
+    //if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCache.Create;
 
     //TODO: RequestHeaders['Host']?
     l:=Length(FURI);
@@ -216,12 +144,12 @@ begin
       if FProjectName='' then
        begin
         if (i<=l) and (FURI[i]='/') then x:='' else x:='/';
-        Redirect(FURLPrefix+'/'+XxmProjectCache.DefaultProject+x+Copy(FURI,i,l-i+1),false);
+        Redirect('/'+XxmProjectCache.DefaultProject+x+Copy(FURI,i,l-i+1),false);
        end;
       FPageClass:='['+FProjectName+']';
-      if (i>l) and (l>1) then Redirect(FURLPrefix+FURI+'/',false) else
+      if (i>l) and (l>1) then Redirect(FURI+'/',false) else
         if (FURI[i]='/') then inc(i);
-      FRedirectPrefix:=FURLPrefix+'/'+FProjectName;
+      FRedirectPrefix:='/'+FProjectName;
      end
     else
      begin
@@ -237,9 +165,12 @@ begin
     //assert headers read and parsed
     //TODO: HTTP/1.1 100 Continue?
 
-    //if Verb<>'GET' then?
-    x:=GetCGIValue('CONTENT_LENGTH');
-    if x<>'' then FPostData:=TXxmPostDataStream.Create(FPipeIn,StrToInt(x));
+    {
+    if FReq.Headers.KnownHeaders[HttpHeaderContentLength].RawValueLength<>0 then
+      FPostData:=TXxmPostDataStream.Create(xxx
+        HttpCheck(HttpReceiveRequestEntityBody(FHSysQueue,FReq.RequestId,)...
+        StrToInt(FReq.Headers.KnownHeaders[HttpHeaderContentLength].pRawValue));
+    }
 
     BuildPage;
 
@@ -269,62 +200,99 @@ begin
         ]);
        end;
   end;
+  //assert HttpSendHttpResponse done
+  //HttpCheck(
+  HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
+    HTTP_SEND_RESPONSE_FLAG_DISCONNECT,//if keep-alive?
+    0,nil,cardinal(nil^),nil,0,nil,nil);
 end;
 
-function TXxmHostedContext.GetProjectEntry: TXxmProjectEntry;
+function TXxmHSys1Context.GetProjectEntry: TXxmProjectEntry;
 begin
   Result:=XxmProjectCache.GetProject(FProjectName);
 end;
 
-function TXxmHostedContext.Connected: boolean;
+function TXxmHSys1Context.Connected: boolean;
 begin
   Result:=FConnected;
   //TODO: set to false when client disconnect
 end;
 
-function TXxmHostedContext.ContextString(cs: TXxmContextString): WideString;
+function TXxmHSys1Context.ContextString(cs: TXxmContextString): WideString;
+const
+  HttpVerb:array[THTTP_VERB] of WideString=(
+    '',//HttpVerbUnparsed,
+    '',//HttpVerbUnknown,
+    '',//HttpVerbInvalid,
+    'OPTIONS',//HttpVerbOPTIONS,
+    'GET',//HttpVerbGET,
+    'HEAD',//HttpVerbHEAD,
+    'POST',//HttpVerbPOST,
+    'PUT',//HttpVerbPUT,
+    'DELETE',//HttpVerbDELETE,
+    'TRACE',//HttpVerbTRACE,
+    'CONNECT',//HttpVerbCONNECT,
+    'TRACK',//HttpVerbTRACK,
+    'MOVE',//HttpVerbMOVE,
+    'COPY',//HttpVerbCOPY,
+    'PROPFIND',//HttpVerbPROPFIND,
+    'PROPPATCH',//HttpVerbPROPPATCH,
+    'MKCOL',//HttpVerbMKCOL,
+    'LOCK',//HttpVerbLOCK,
+    'UNLOCK',//HttpVerbUNLOCK,
+    'SEARCH',//HttpVerbSEARCH,
+    '' //HttpVerbMaximum
+  );
+var
+  x:THTTP_HEADER_ID;
 begin
+  x:=THTTP_HEADER_ID(-1);
   case cs of
-    csVersion:Result:=SelfVersion+' '+GetCGIValue('SERVER_SOFTWARE');
+    csVersion:Result:=SelfVersion;//+' '+??HttpHeaderServer ? 'Microsoft-HTTPAPI/1.0'?
     csExtraInfo:Result:='';//???
-    csVerb:Result:=GetCGIValue('REQUEST_METHOD');
+    csVerb:
+      if FReq.Verb in [HttpVerbUnparsed,HttpVerbUnknown,HttpVerbInvalid] then
+        Result:=FReq.pUnknownVerb
+      else
+        Result:=HttpVerb[FReq.Verb];
     csQueryString:Result:=Copy(FURI,FQueryStringIndex,Length(FURI)-FQueryStringIndex+1);
-    csUserAgent:Result:=FReqHeaders['User-Agent'];
-    csAcceptedMimeTypes:Result:=FReqHeaders['Accept'];//TODO:
-    csPostMimeType:Result:=GetCGIValue('CONTENT_TYPE');//TODO:
-    csURL:Result:=GetURL;
+    csUserAgent:x:=HttpHeaderUserAgent;
+    csAcceptedMimeTypes:x:=HttpHeaderAccept;
+    csPostMimeType:x:=HttpHeaderContentType;
+    csURL:Result:=FReq.pRawUrl;
     csProjectName:Result:=FProjectName;
     csLocalURL:Result:=FFragmentName;
-    csReferer:Result:=FReqHeaders['Referer'];//TODO:
-    csLanguage:Result:=FReqHeaders['Language'];//TODO:
-    csRemoteAddress:Result:=GetCGIValue('REMOTE_ADDR');
-    csRemoteHost:Result:=GetCGIValue('REMOTE_HOST');
-    csAuthUser:Result:=GetCGIValue('AUTH_USER');
-    csAuthPassword:Result:=GetCGIValue('AUTH_PASSWORD');
+    csReferer:x:=HttpHeaderReferer;
+    csLanguage:x:=HttpHeaderContentLanguage;
+    csRemoteAddress:Result:=inet_ntoa(FReq.Address.pRemoteAddress.sin_addr);
+    csRemoteHost:Result:=inet_ntoa(FReq.Address.pRemoteAddress.sin_addr);//TODO: resolve name
+    csAuthUser:;//TODO:Result:=GetCGIValue('AUTH_USER');
+    csAuthPassword:;//TODO:Result:=GetCGIValue('AUTH_PASSWORD');
     else
       raise EXxmContextStringUnknown.Create(StringReplace(
         SXxmContextStringUnknown,'__',IntToHex(integer(cs),8),[]));
   end;
+  if x<>THTTP_HEADER_ID(-1) then Result:=FReq.Headers.KnownHeaders[x].pRawValue;
 end;
 
-procedure TXxmHostedContext.DispositionAttach(FileName: WideString);
+procedure TXxmHSys1Context.DispositionAttach(FileName: WideString);
 begin
   FResHeaders.SetComplex('Content-disposition','attachment')
     ['filename']:=FileName;
 end;
 
-function TXxmHostedContext.GetCookie(Name: WideString): WideString;
+function TXxmHSys1Context.GetCookie(Name: WideString): WideString;
 begin
   if not(FCookieParsed) then
    begin
-    FCookie:=FReqHeaders['Cookie'];
+    FCookie:=FReq.Headers.KnownHeaders[HttpHeaderCookie].pRawValue;
     SplitHeaderValue(FCookie,0,Length(FCookie),FCookieIdx);
     FCookieParsed:=true;
    end;
   Result:=GetParamValue(FCookie,FCookieIdx,Name);
 end;
 
-procedure TXxmHostedContext.SetCookie(Name, Value: WideString);
+procedure TXxmHSys1Context.SetCookie(Name, Value: WideString);
 begin
   CheckHeaderNotSent;
   //check name?
@@ -333,7 +301,7 @@ begin
   FResHeaders.Add('Set-Cookie',Name+'="'+Value+'"');
 end;
 
-procedure TXxmHostedContext.SetCookie(Name, Value: WideString;
+procedure TXxmHSys1Context.SetCookie(Name, Value: WideString;
   KeepSeconds: cardinal; Comment, Domain, Path: WideString; Secure,
   HttpOnly: boolean);
 var
@@ -361,7 +329,7 @@ begin
   //TODO: Set-Cookie2
 end;
 
-function TXxmHostedContext.GetSessionID: WideString;
+function TXxmHSys1Context.GetSessionID: WideString;
 const
   SessionCookie='xxmSessionID';
 begin
@@ -377,7 +345,7 @@ begin
   Result:=FSessionID;
 end;
 
-procedure TXxmHostedContext.Redirect(RedirectURL: WideString;
+procedure TXxmHSys1Context.Redirect(RedirectURL: WideString;
   Relative: boolean);
 var
   NewURL,RedirBody:WideString;
@@ -399,13 +367,26 @@ begin
   raise EXxmPageRedirected.Create(RedirectURL);
 end;
 
-procedure TXxmHostedContext.SendRaw(Data:WideString);
+procedure TXxmHSys1Context.SendRaw(Data:WideString);
 const
   Utf8ByteOrderMark=#$EF#$BB#$BF;
   Utf16ByteOrderMark=#$FF#$FE;
 var
   s:AnsiString;
-  l:cardinal;
+
+  procedure SendChunk(x:pointer;l:cardinal);
+  var
+    c:THTTP_DATA_CHUNK;
+  begin
+    ZeroMemory(@c,SizeOf(THTTP_DATA_CHUNK));
+    c.DataChunkType:=HttpDataChunkFromMemory;
+    c.pBuffer:=x;
+    c.BufferLength:=l;
+    HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
+      HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+      1,@c,l,nil,0,nil,nil));
+  end;
+
 begin
   //TODO: catch WriteFile returned values!
   if Data<>'' then
@@ -414,26 +395,26 @@ begin
       case FAutoEncoding of
         aeUtf8:
           if FBuffer=nil then
-            WriteFile(FPipeOut,Utf8ByteOrderMark[1],3,l,nil)
+            SendChunk(@Utf8ByteOrderMark[1],3)
           else
             FBuffer.Write(Utf8ByteOrderMark[1],3);
         aeUtf16:
           if FBuffer=nil then
-            WriteFile(FPipeOut,Utf16ByteOrderMark[1],2,l,nil)
+            SendChunk(@Utf16ByteOrderMark[1],2)
           else
             FBuffer.Write(Utf16ByteOrderMark[1],2);
       end;
     case FAutoEncoding of
       aeUtf16:
         if FBuffer=nil then
-          WriteFile(FPipeOut,Data[1],Length(Data)*2,l,nil)
+          SendChunk(@Data[1],Length(Data)*2)
         else
           FBuffer.Write(Data[1],Length(Data)*2);
       aeUtf8:
        begin
         s:=UTF8Encode(Data);
         if FBuffer=nil then
-          WriteFile(FPipeOut,s[1],Length(s),l,nil)
+          SendChunk(@s[1],Length(s))
         else
           FBuffer.Write(s[1],Length(s));
        end;
@@ -441,7 +422,7 @@ begin
        begin
         s:=Data;
         if FBuffer=nil then
-          WriteFile(FPipeOut,s[1],Length(s),l,nil)
+          SendChunk(@s[1],Length(s))
         else
           FBuffer.Write(s[1],Length(s));
        end;
@@ -450,31 +431,38 @@ begin
    end;
 end;
 
-procedure TXxmHostedContext.SendStream(s: IStream);
+procedure TXxmHSys1Context.SendStream(s: IStream);
 const
   dSize=$10000;
 var
   l,l1:cardinal;
   d:array[0..dSize-1] of byte;
+  c:THTTP_DATA_CHUNK;
 begin
   CheckSendStart;
+  ZeroMemory(@c,SizeOf(THTTP_DATA_CHUNK));
+  c.DataChunkType:=HttpDataChunkFromMemory;
+  c.pBuffer:=@d[0];
   repeat
     l:=dSize;
     OleCheck(s.Read(@d[0],l,@l));
     if l<>0 then
      begin
       if FBuffer<>nil then Flush;
-      if not(WriteFile(FPipeOut,d[0],l,l1,nil)) then RaiseLastOSError;
+      c.BufferLength:=l;
+      HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
+        HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+        1,@c,l1,nil,0,nil,nil));
       if l<>l1 then raise Exception.Create('Stream Write Failed');
      end;
   until l=0;
 end;
 
-procedure TXxmHostedContext.SendHeader;
+procedure TXxmHSys1Context.SendHeader;
 var
-  x:AnsiString;
-  i:integer;
+  x,y:AnsiString;
   l:cardinal;
+  q:THTTP_RESPONSE;
 const
   AutoEncodingCharset:array[TXxmAutoEncoding] of string=(
     '',//aeContentDefined
@@ -486,57 +474,122 @@ begin
   //TODO: Content-Length?
   //TODO: Connection keep?
   //use FResHeader.Complex?
-  FResHeaders['Content-Type']:=FContentType+AutoEncodingCharset[FAutoEncoding];
-  i:=StatusCode;
-  WriteFile(FPipeOut,i,4,l,nil);
-  x:=//GetCGIValue('SERVER_PROTOCOL')+' '+
-    'Status: '+IntToStr(i)+' '+StatusText+#13#10+
-    FResHeaders.Build+#13#10;
-  WriteFile(FPipeOut,x[1],Length(x),l,nil);
+
+  x:=StatusText;
+  y:=FContentType+AutoEncodingCharset[FAutoEncoding];
+
+  ZeroMemory(@q,SizeOf(THTTP_RESPONSE));
+  //q.Version:=HTTP_VERSION_1_1;//:=r.Version;
+  q.Version:=FReq.Version;
+  q.StatusCode:=StatusCode;
+  q.pReason:=PAnsiChar(x);
+  q.ReasonLength:=Length(x);
+
+  q.Headers.KnownHeaders[HttpHeaderContentType].pRawValue:=PAnsiChar(y);
+  q.Headers.KnownHeaders[HttpHeaderContentType].RawValueLength:=Length(y);
+
+  HttpCheck(HttpSendHttpResponse(FHSysQueue,FReq.RequestId,
+    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+    @q,nil,l,nil,0,nil,nil));
 end;
 
-function TXxmHostedContext.GetRequestHeaders: IxxmDictionaryEx;
+const
+  HttpHeaders:array[THTTP_HEADER_ID] of AnsiString=(
+    'Cache-Control',
+    'Connection',
+    'Date',
+    'Keep-Alive',
+    'Pragma',
+    'Trailer',
+    'Transfer-Encoding',
+    'Upgrade',
+    'Via',
+    'Warning',
+    'Allow',
+    'Content-Length',
+    'Content-Type',
+    'Content-Encoding',
+    'Content-Language',
+    'Content-Location',
+    'Content-MD5',
+    'Content-Range',
+    'Expires',
+    'Last-Modified',
+    'Accept',
+    'Accept-Charset',
+    'Accept-Encoding',
+    'Accept-Language',
+    'Authorization',
+    'Cookie',
+    'Expect',
+    'From',
+    'Host',
+    'If-Match',
+    'If-Modified-Since',
+    'If-None-Match',
+    'If-Range',
+    'If-Unmodified-Since',
+    'Max-Forwards',
+    'Proxy-Authorization',
+    'Referer',
+    'Range',
+    'TE',
+    'Translate',
+    'User-Agent');
+
+function TXxmHSys1Context.GetRequestHeaders: IxxmDictionaryEx;
+var
+  s:AnsiString;
+  x:THTTP_HEADER_ID;
+  i:integer;
+type
+  THTTP_UNKNOWN_HEADER_ARRAY=array[0..0] of THTTP_UNKNOWN_HEADER;
+  PHTTP_UNKNOWN_HEADER_ARRAY=^THTTP_UNKNOWN_HEADER_ARRAY;
 begin
-  //assert FReqHeaders<>nil since parsed at start of Execute
-  Result:=FReqHeaders;
+  s:='';
+  for x:=HttpHeaderStart to HttpHeaderMaximum do
+    if FReq.Headers.KnownHeaders[x].RawValueLength<>0 then
+      s:=s+HttpHeaders[x]+': '+FReq.Headers.KnownHeaders[x].pRawValue+#13#10;
+  for i:=0 to FReq.Headers.UnknownHeaderCount-1 do
+    s:=s+PHTTP_UNKNOWN_HEADER_ARRAY(FReq.Headers.pUnknownHeaders)[i].pName+': '+
+      PHTTP_UNKNOWN_HEADER_ARRAY(FReq.Headers.pUnknownHeaders)[i].pRawValue+#13#10;
+  Result:=TRequestHeaders.Create(s+#13#10);
 end;
 
-function TXxmHostedContext.GetResponseHeaders: IxxmDictionaryEx;
+function TXxmHSys1Context.GetResponseHeaders: IxxmDictionaryEx;
 begin
   Result:=FResHeaders;
 end;
 
-function TXxmHostedContext.GetCGIValue(Name: AnsiString): AnsiString;
-var
-  i:integer;
-begin
-  i:=0;
-  while (i<FCGIValuesCount) and (Name<>FCGIValues[i].Name) do inc(i); //TODO: case-insensitive?
-  if i=FCGIValuesCount then Result:='' else Result:=FCGIValues[i].Value;
-end;
-
-procedure TXxmHostedContext.AddResponseHeader(Name, Value: WideString);
+procedure TXxmHSys1Context.AddResponseHeader(Name, Value: WideString);
 begin
   inherited;
   FResHeaders[Name]:=Value;
 end;
 
-procedure TXxmHostedContext.Flush;
+procedure TXxmHSys1Context.Flush;
 var
   i,l:cardinal;
+  c:THTTP_DATA_CHUNK;
 begin
   if FBuffer<>nil then
    begin
     i:=FBuffer.Position;
     if i<>0 then
      begin
-      WriteFile(FPipeOut,FBuffer.Memory^,i,l,nil);
+      ZeroMemory(@c,SizeOf(THTTP_DATA_CHUNK));
+      c.DataChunkType:=HttpDataChunkFromMemory;
+      c.pBuffer:=FBuffer.Memory;
+      c.BufferLength:=i;
+      HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
+        HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+        1,@c,l,nil,0,nil,nil));
       FBuffer.Position:=0;
      end;
    end;
 end;
 
-procedure TXxmHostedContext.SetBufferSize(ABufferSize: Integer);
+procedure TXxmHSys1Context.SetBufferSize(ABufferSize: Integer);
 begin
   inherited;
   if ABufferSize=0 then
