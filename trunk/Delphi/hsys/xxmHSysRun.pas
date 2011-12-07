@@ -16,13 +16,11 @@ uses Windows, SysUtils, Classes, ActiveX,
 
 procedure XxmRunHSys(HandleMessagesProc:TXxmHandleMessagesProc);
 var
-  i,j:integer;
-  s,t:AnsiString;
+  i:integer;
+  s:AnsiString;
   w:WideString;
   hrq:THandle;
   QuitApp:boolean;
-  r:DWORD;
-  l:cardinal;
 begin
   QuitApp:=false;
 
@@ -48,7 +46,8 @@ begin
   //TODO: overlapped/completionport
   while not QuitApp do
    begin
-    PageLoaderPool.Queue(TXxmHSys1Context.Create(hrq));
+    //if WaitForSingleObject(hrq,0)=WAIT_OBJECT_0 then ???
+      PageLoaderPool.Queue(TXxmHSys1Context.Create(hrq));
     HandleMessagesProc(QuitApp);
    end;
 

@@ -41,6 +41,11 @@ type
     FBuffer:TMemoryStream;
     procedure SetResponseHeader(id:THTTP_HEADER_ID;Value:AnsiString);
     procedure CacheString(x: AnsiString; var xLen: USHORT; var xPtr: PCSTR);
+    function GetResponseHeader(Name:WideString):WideString;
+    function GetResponseHeaderCount:integer;
+    function GetResponseHeaderName(Idx:integer):WideString;
+    function GetResponseHeaderIndex(Idx:integer):WideString;
+    procedure SetResponseHeaderIndex(Idx:integer;Value:WideString);
   protected
     procedure SendRaw(Data: WideString); override;
     procedure SendStream(s:IStream); override;
@@ -511,7 +516,29 @@ end;
 
 function TXxmHSys1Context.GetResponseHeaders: IxxmDictionaryEx;
 begin
-  Result:=nil;//TODO: TxxmHSysResponseHeaders.Create(
+  Result:=TxxmHSysResponseHeaders.Create(
+    GetResponseHeader,AddResponseHeader,
+    GetResponseHeaderCount,GetResponseHeaderName,
+    GetResponseHeaderIndex,SetResponseHeaderIndex);
+end;
+
+function TXxmHSys1Context.GetResponseHeader(Name: WideString): WideString;
+var
+  i:integer;
+  x:THTTP_HEADER_ID;
+begin
+  inherited;
+  //TODO: encode when non-UTF7 characters?
+  x:=HttpHeaderStart;
+  while (x<=HttpHeaderResponseMaximum) and (CompareText(HttpResponseHeaderName[x],Name)<>0) do inc(x);
+  if x>HttpHeaderResponseMaximum then
+   begin
+    i:=0;
+    while (i<Length(FUnknownHeaders)) and (CompareText(FUnknownHeaders[i].pName,Name)<>0) do inc(i);
+    if i=Length(FUnknownHeaders) then Result:='' else Result:=FUnknownHeaders[i].pRawValue;
+   end
+  else
+    Result:=FRes.Headers.KnownHeaders[x].pRawValue;
 end;
 
 procedure TXxmHSys1Context.AddResponseHeader(Name, Value: WideString);
@@ -601,6 +628,41 @@ begin
   inc(FStringCacheIndex);
   xLen:=Length(x);
   xPtr:=PAnsiChar(x);
+end;
+
+function TXxmHSys1Context.GetResponseHeaderCount: integer;
+begin
+  Result:=integer(HttpHeaderResponseMaximum)+Length(FUnknownHeaders);
+  //TODO: skip empty ones?
+end;
+
+function TXxmHSys1Context.GetResponseHeaderName(Idx: integer): WideString;
+begin
+  if Idx<=integer(HttpHeaderResponseMaximum) then
+    Result:=HttpResponseHeaderName[THTTP_HEADER_ID(Idx)]
+  else
+    Result:=FUnknownHeaders[Idx-integer(HttpHeaderResponseMaximum)-1].pName;
+end;
+
+function TXxmHSys1Context.GetResponseHeaderIndex(Idx: integer): WideString;
+begin
+  if Idx<=integer(HttpHeaderResponseMaximum) then
+    Result:=FRes.Headers.KnownHeaders[THTTP_HEADER_ID(Idx)].pRawValue
+  else
+    Result:=FUnknownHeaders[Idx-integer(HttpHeaderResponseMaximum)-1].pRawValue;
+end;
+
+procedure TXxmHSys1Context.SetResponseHeaderIndex(Idx: integer;
+  Value: WideString);
+begin
+  if Idx<=integer(HttpHeaderResponseMaximum) then
+    CacheString(Value,
+      FRes.Headers.KnownHeaders[THTTP_HEADER_ID(Idx)].RawValueLength,
+      FRes.Headers.KnownHeaders[THTTP_HEADER_ID(Idx)].pRawValue)
+  else
+    CacheString(Value,
+      FUnknownHeaders[Idx-integer(HttpHeaderResponseMaximum)-1].RawValueLength,
+      FUnknownHeaders[Idx-integer(HttpHeaderResponseMaximum)-1].pRawValue);
 end;
 
 { TXxmPostDataStream }
