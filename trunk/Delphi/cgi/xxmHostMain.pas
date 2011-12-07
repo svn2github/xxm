@@ -591,8 +591,7 @@ begin
       inc(FInputRead,l);
      end;
    end;
-    l:=inherited Read(Buffer,Count);
-  Result:=l;
+  Result:=inherited Read(Buffer,Count);
 end;
 
 procedure TXxmPostDataStream.SetSize(NewSize: Integer);

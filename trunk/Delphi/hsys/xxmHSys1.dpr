@@ -16,7 +16,8 @@ uses
   xxmHSysPReg in 'xxmHSysPReg.pas',
   xxmCommonUtils in '..\common\xxmCommonUtils.pas',
   xxmContext in '..\common\xxmContext.pas',
-  MSXML2_TLB in '..\common\MSXML2_TLB.pas';
+  MSXML2_TLB in '..\common\MSXML2_TLB.pas',
+  xxmHSysHeaders in 'xxmHSysHeaders.pas';
 
 {$R *.res}
 

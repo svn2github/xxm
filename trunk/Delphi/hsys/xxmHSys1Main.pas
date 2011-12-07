@@ -12,10 +12,11 @@ const
 type
   TXxmPostDataStream=class(TCustomMemoryStream)
   private
-    FInput:THandle;
+    FHSysQueue:THandle;
+    FRequestID:THTTP_REQUEST_ID;
     FInputRead,FInputSize:cardinal;
   public
-    constructor Create(Input:THandle;InputSize:cardinal);
+    constructor Create(HSysQueue:THandle;RequestID:THTTP_REQUEST_ID;InputSize:cardinal);
     destructor Destroy; override;
     function Write(const Buffer; Count: Integer): Integer; override;
     function Read(var Buffer; Count: Integer): Integer; override;
@@ -27,7 +28,10 @@ type
     FData:array[0..XxmHSys1ContextDataSize-1] of byte;
     FHSysQueue:THandle;
     FReq:PHTTP_REQUEST;
-    FResHeaders:TResponseHeaders;
+    FRes:THTTP_RESPONSE;
+    FUnknownHeaders: array of THTTP_UNKNOWN_HEADER;
+    FStringCache:array of AnsiString;
+    FStringCacheSize,FStringCacheIndex:integer;
     FConnected:boolean;
     FURI,FRedirectPrefix,FSessionID:AnsiString;
     FCookieParsed: boolean;
@@ -35,6 +39,8 @@ type
     FCookieIdx: TParamIndexes;
     FQueryStringIndex:integer;
     FBuffer:TMemoryStream;
+    procedure SetResponseHeader(id:THTTP_HEADER_ID;Value:AnsiString);
+    procedure CacheString(x: AnsiString; var xLen: USHORT; var xPtr: PCSTR);
   protected
     procedure SendRaw(Data: WideString); override;
     procedure SendStream(s:IStream); override;
@@ -72,14 +78,14 @@ type
 
 implementation
 
-uses Windows, Variants, ComObj, xxmCommonUtils, WinSock;
+uses Windows, Variants, ComObj, xxmCommonUtils, WinSock, xxmHSysHeaders;
 
 resourcestring
   SXxmMaximumHeaderLines='Maximum header lines exceeded.';
   SXxmContextStringUnknown='Unknown ContextString __';
 
 const
-  HTTPMaxHeaderLines=$400;
+  StringCacheGrowStep=$20;
 
 { TXxmHSys1Context }
 
@@ -97,8 +103,14 @@ begin
     0,//HTTP_RECEIVE_REQUEST_FLAG_FLUSH_BODY,
     FReq,XxmHSys1ContextDataSize,l,nil));
 
-  FResHeaders:=TResponseHeaders.Create;
-  (FResHeaders as IUnknown)._AddRef;
+  //SetLength(FUnknownHeaders,0);
+  ZeroMemory(@FRes,SizeOf(THTTP_RESPONSE));
+  FRes.Version:=FReq.Version;//:=HTTP_VERSION_1_1;
+  //more: see SendHeader
+
+  FStringCacheSize:=0;
+  FStringCacheIndex:=0;
+
   FConnected:=true;
   FCookieParsed:=false;
   FQueryStringIndex:=1;
@@ -114,11 +126,6 @@ begin
     FBuffer.Free;
     FBuffer:=nil;
    end;
-  if FResHeaders<>nil then
-   begin
-    (FResHeaders as IUnknown)._Release;
-    FResHeaders:=nil;
-   end;
   inherited;
 end;
 
@@ -131,8 +138,7 @@ begin
     FURL:=FReq.CookedUrl.pFullUrl;
     FURI:=FReq.pRawUrl;
 
-    FResHeaders['X-Powered-By']:=SelfVersion;
-    //if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCache.Create;
+    AddResponseHeader('X-Powered-By',SelfVersion);
 
     //TODO: RequestHeaders['Host']?
     l:=Length(FURI);
@@ -165,12 +171,9 @@ begin
     //assert headers read and parsed
     //TODO: HTTP/1.1 100 Continue?
 
-    {
     if FReq.Headers.KnownHeaders[HttpHeaderContentLength].RawValueLength<>0 then
-      FPostData:=TXxmPostDataStream.Create(xxx
-        HttpCheck(HttpReceiveRequestEntityBody(FHSysQueue,FReq.RequestId,)...
+      FPostData:=TXxmPostDataStream.Create(FHSysQueue,FReq.RequestId,
         StrToInt(FReq.Headers.KnownHeaders[HttpHeaderContentLength].pRawValue));
-    }
 
     BuildPage;
 
@@ -277,8 +280,7 @@ end;
 
 procedure TXxmHSys1Context.DispositionAttach(FileName: WideString);
 begin
-  FResHeaders.SetComplex('Content-disposition','attachment')
-    ['filename']:=FileName;
+  AddResponseHeader('Content-disposition','attachment; filename="'+FileName+'"');
 end;
 
 function TXxmHSys1Context.GetCookie(Name: WideString): WideString;
@@ -297,8 +299,8 @@ begin
   CheckHeaderNotSent;
   //check name?
   //TODO: "quoted string"?
-  FResHeaders['Cache-Control']:='no-cache="set-cookie"';
-  FResHeaders.Add('Set-Cookie',Name+'="'+Value+'"');
+  SetResponseHeader(HttpHeaderCacheControl,'no-cache="set-cookie"');
+  SetResponseHeader(HttpHeaderSetCookie,Name+'="'+Value+'"');
 end;
 
 procedure TXxmHSys1Context.SetCookie(Name, Value: WideString;
@@ -310,7 +312,7 @@ begin
   CheckHeaderNotSent;
   //check name?
   //TODO: "quoted string"?
-  FResHeaders['Cache-Control']:='no-cache="set-cookie"';
+  SetResponseHeader(HttpHeaderCacheControl,'no-cache="set-cookie"');
   x:=Name+'="'+Value+'"';
   //'; Version=1';
   if Comment<>'' then
@@ -325,7 +327,7 @@ begin
     x:=x+'; Secure'+#13#10;
   if HttpOnly then
     x:=x+'; HttpOnly'+#13#10;
-  FResHeaders.Add('Set-Cookie',x);
+  SetResponseHeader(HttpHeaderSetCookie,x);
   //TODO: Set-Cookie2
 end;
 
@@ -356,11 +358,11 @@ begin
   NewURL:=RedirectURL;
   if Relative and (NewURL<>'') and (NewURL[1]='/') then NewURL:=FRedirectPrefix+NewURL;
   RedirBody:='<a href="'+HTMLEncode(NewURL)+'">'+HTMLEncode(NewURL)+'</a>'#13#10;
-  FResHeaders['Location']:=NewURL;
+  SetResponseHeader(HttpHeaderLocation,NewURL);
   case FAutoEncoding of
-    aeUtf8:FResHeaders['Content-Length']:=IntToStr(Length(UTF8Encode(RedirBody))+3);
-    aeUtf16:FResHeaders['Content-Length']:=IntToStr(Length(RedirBody)*2+2);
-    aeIso8859:FResHeaders['Content-Length']:=IntToStr(Length(AnsiString(RedirBody)));
+    aeUtf8:SetResponseHeader(HttpHeaderContentLength,IntToStr(Length(UTF8Encode(RedirBody))+3));
+    aeUtf16:SetResponseHeader(HttpHeaderContentLength,IntToStr(Length(RedirBody)*2+2));
+    aeIso8859:SetResponseHeader(HttpHeaderContentLength,IntToStr(Length(AnsiString(RedirBody))));
   end;
   SendRaw(RedirBody);
   if FBufferSize<>0 then Flush;  
@@ -460,9 +462,7 @@ end;
 
 procedure TXxmHSys1Context.SendHeader;
 var
-  x,y:AnsiString;
   l:cardinal;
-  q:THTTP_RESPONSE;
 const
   AutoEncodingCharset:array[TXxmAutoEncoding] of string=(
     '',//aeContentDefined
@@ -473,69 +473,22 @@ const
 begin
   //TODO: Content-Length?
   //TODO: Connection keep?
-  //use FResHeader.Complex?
-
-  x:=StatusText;
-  y:=FContentType+AutoEncodingCharset[FAutoEncoding];
-
-  ZeroMemory(@q,SizeOf(THTTP_RESPONSE));
-  //q.Version:=HTTP_VERSION_1_1;//:=r.Version;
-  q.Version:=FReq.Version;
-  q.StatusCode:=StatusCode;
-  q.pReason:=PAnsiChar(x);
-  q.ReasonLength:=Length(x);
-
-  q.Headers.KnownHeaders[HttpHeaderContentType].pRawValue:=PAnsiChar(y);
-  q.Headers.KnownHeaders[HttpHeaderContentType].RawValueLength:=Length(y);
-
+  FRes.StatusCode:=StatusCode;
+  CacheString(StatusText,FRes.ReasonLength,FRes.pReason);
+  if FAutoEncoding<>aeContentDefined then
+    CacheString(FContentType+AutoEncodingCharset[FAutoEncoding],
+      FRes.Headers.KnownHeaders[HttpHeaderContentType].RawValueLength,
+      FRes.Headers.KnownHeaders[HttpHeaderContentType].pRawValue);
+  l:=Length(FUnknownHeaders);
+  FRes.Headers.UnknownHeaderCount:=l;
+  if l=0 then
+    FRes.Headers.pUnknownHeaders:=nil
+  else
+    FRes.Headers.pUnknownHeaders:=@FUnknownHeaders[0];
   HttpCheck(HttpSendHttpResponse(FHSysQueue,FReq.RequestId,
     HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
-    @q,nil,l,nil,0,nil,nil));
+    @FRes,nil,l,nil,0,nil,nil));
 end;
-
-const
-  HttpHeaders:array[THTTP_HEADER_ID] of AnsiString=(
-    'Cache-Control',
-    'Connection',
-    'Date',
-    'Keep-Alive',
-    'Pragma',
-    'Trailer',
-    'Transfer-Encoding',
-    'Upgrade',
-    'Via',
-    'Warning',
-    'Allow',
-    'Content-Length',
-    'Content-Type',
-    'Content-Encoding',
-    'Content-Language',
-    'Content-Location',
-    'Content-MD5',
-    'Content-Range',
-    'Expires',
-    'Last-Modified',
-    'Accept',
-    'Accept-Charset',
-    'Accept-Encoding',
-    'Accept-Language',
-    'Authorization',
-    'Cookie',
-    'Expect',
-    'From',
-    'Host',
-    'If-Match',
-    'If-Modified-Since',
-    'If-None-Match',
-    'If-Range',
-    'If-Unmodified-Since',
-    'Max-Forwards',
-    'Proxy-Authorization',
-    'Referer',
-    'Range',
-    'TE',
-    'Translate',
-    'User-Agent');
 
 function TXxmHSys1Context.GetRequestHeaders: IxxmDictionaryEx;
 var
@@ -549,7 +502,7 @@ begin
   s:='';
   for x:=HttpHeaderStart to HttpHeaderMaximum do
     if FReq.Headers.KnownHeaders[x].RawValueLength<>0 then
-      s:=s+HttpHeaders[x]+': '+FReq.Headers.KnownHeaders[x].pRawValue+#13#10;
+      s:=s+HttpRequestHeaderName[x]+': '+FReq.Headers.KnownHeaders[x].pRawValue+#13#10;
   for i:=0 to FReq.Headers.UnknownHeaderCount-1 do
     s:=s+PHTTP_UNKNOWN_HEADER_ARRAY(FReq.Headers.pUnknownHeaders)[i].pName+': '+
       PHTTP_UNKNOWN_HEADER_ARRAY(FReq.Headers.pUnknownHeaders)[i].pRawValue+#13#10;
@@ -558,13 +511,31 @@ end;
 
 function TXxmHSys1Context.GetResponseHeaders: IxxmDictionaryEx;
 begin
-  Result:=FResHeaders;
+  Result:=nil;//TODO: TxxmHSysResponseHeaders.Create(
 end;
 
 procedure TXxmHSys1Context.AddResponseHeader(Name, Value: WideString);
+var
+  i:integer;
+  x:THTTP_HEADER_ID;
 begin
   inherited;
-  FResHeaders[Name]:=Value;
+  //TODO: encode when non-UTF7 characters?
+  x:=HttpHeaderStart;
+  while (x<=HttpHeaderResponseMaximum) and (CompareText(HttpResponseHeaderName[x],Name)<>0) do inc(x);
+  if x>HttpHeaderResponseMaximum then
+   begin
+    i:=0;
+    while (i<Length(FUnknownHeaders)) and (CompareText(FUnknownHeaders[i].pName,Name)<>0) do inc(i);
+    if i=Length(FUnknownHeaders) then
+     begin
+      SetLength(FUnknownHeaders,i+1);
+      CacheString(Name,FUnknownHeaders[i].NameLength,FUnknownHeaders[i].pName);
+     end;
+    CacheString(Value,FUnknownHeaders[i].RawValueLength,FUnknownHeaders[i].pRawValue);
+   end
+  else
+    CacheString(Value,FRes.Headers.KnownHeaders[x].RawValueLength,FRes.Headers.KnownHeaders[x].pRawValue);
 end;
 
 procedure TXxmHSys1Context.Flush;
@@ -609,12 +580,36 @@ begin
    end;
 end;
 
+procedure TXxmHSys1Context.SetResponseHeader(id: THTTP_HEADER_ID;
+  Value: AnsiString);
+begin
+  CacheString(Value,
+    FRes.Headers.KnownHeaders[id].RawValueLength,
+    FRes.Headers.KnownHeaders[id].pRawValue);
+end;
+
+procedure TXxmHSys1Context.CacheString(x: AnsiString; var xLen: USHORT;
+  var xPtr: PCSTR);
+begin
+  //TODO: check duplicate?
+  if FStringCacheIndex=FStringCacheSize then
+   begin
+    inc(FStringCacheSize,StringCacheGrowStep);
+    SetLength(FStringCache,FStringCacheSize);
+   end;
+  FStringCache[FStringCacheIndex]:=x;
+  inc(FStringCacheIndex);
+  xLen:=Length(x);
+  xPtr:=PAnsiChar(x);
+end;
+
 { TXxmPostDataStream }
 
-constructor TXxmPostDataStream.Create(Input:THandle;InputSize:cardinal);
+constructor TXxmPostDataStream.Create(HSysQueue:THandle;RequestID:THTTP_REQUEST_ID;InputSize:cardinal);
 begin
   inherited Create;
-  FInput:=Input;
+  FHSysQueue:=HSysQueue;
+  FRequestID:=RequestID;
   FInputRead:=0;
   FInputSize:=InputSize;
   SetPointer(GlobalAllocPtr(GMEM_MOVEABLE,FInputSize),FInputSize);
@@ -640,12 +635,13 @@ begin
      begin
       p:=Memory;
       inc(cardinal(p),FInputRead);
-      if not(ReadFile(FInput,p^,l,l,nil)) then RaiseLastOSError;
+      HttpCheck(HttpReceiveRequestEntityBody(FHSysQueue,FRequestId,
+        HTTP_RECEIVE_REQUEST_ENTITY_BODY_FLAG_FILL_BUFFER,
+        p,l,l,nil));
       inc(FInputRead,l);
      end;
    end;
-    l:=inherited Read(Buffer,Count);
-  Result:=l;
+  Result:=inherited Read(Buffer,Count);
 end;
 
 procedure TXxmPostDataStream.SetSize(NewSize: Integer);

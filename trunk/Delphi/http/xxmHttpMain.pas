@@ -651,8 +651,6 @@ begin
   //'If-Modified-Since' ? 304
   //'Connection: Keep-alive' ? with sent Content-Length
 
-  //data (Content-Length
-
   FResHeaders['Server']:=HttpSelfVersion; //X-Powered-By?
   FURL:=FReqHeaders['Host'];
   if FURL='' then
