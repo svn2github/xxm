@@ -38,7 +38,6 @@ type
     FCookie: AnsiString;
     FCookieIdx: TParamIndexes;
     FQueryStringIndex:integer;
-    FBuffer:TMemoryStream;
     procedure SetResponseHeader(id:THTTP_HEADER_ID;Value:AnsiString);
     procedure CacheString(x: AnsiString; var xLen: USHORT; var xPtr: PCSTR);
     function GetResponseHeader(Name:WideString):WideString;
@@ -120,17 +119,12 @@ begin
   FCookieParsed:=false;
   FQueryStringIndex:=1;
   FSessionID:='';//see GetSessionID
-  FBuffer:=nil;
   FRedirectPrefix:='';
 end;
 
 destructor TXxmHSys1Context.Destroy;
 begin
-  if FBuffer<>nil then
-   begin
-    FBuffer.Free;
-    FBuffer:=nil;
-   end;
+  //
   inherited;
 end;
 
@@ -401,40 +395,40 @@ begin
     if CheckSendStart then
       case FAutoEncoding of
         aeUtf8:
-          if FBuffer=nil then
+          if FBufferSize=0 then
             SendChunk(@Utf8ByteOrderMark[1],3)
           else
-            FBuffer.Write(Utf8ByteOrderMark[1],3);
+            ContentBuffer.Write(Utf8ByteOrderMark[1],3);
         aeUtf16:
-          if FBuffer=nil then
+          if FBufferSize=0 then
             SendChunk(@Utf16ByteOrderMark[1],2)
           else
-            FBuffer.Write(Utf16ByteOrderMark[1],2);
+            ContentBuffer.Write(Utf16ByteOrderMark[1],2);
       end;
     case FAutoEncoding of
       aeUtf16:
-        if FBuffer=nil then
+        if FBufferSize=0 then
           SendChunk(@Data[1],Length(Data)*2)
         else
-          FBuffer.Write(Data[1],Length(Data)*2);
+          ContentBuffer.Write(Data[1],Length(Data)*2);
       aeUtf8:
        begin
         s:=UTF8Encode(Data);
-        if FBuffer=nil then
+        if FBufferSize=0 then
           SendChunk(@s[1],Length(s))
         else
-          FBuffer.Write(s[1],Length(s));
+          ContentBuffer.Write(s[1],Length(s));
        end;
       else
        begin
         s:=Data;
-        if FBuffer=nil then
+        if FBufferSize=0 then
           SendChunk(@s[1],Length(s))
         else
-          FBuffer.Write(s[1],Length(s));
+          ContentBuffer.Write(s[1],Length(s));
        end;
     end;
-    if (FBuffer<>nil) and (FBuffer.Position>=FBufferSize) then Flush;
+    if (FBufferSize<>0) and (ContentBuffer.Position>=FBufferSize) then Flush;
    end;
 end;
 
@@ -455,7 +449,7 @@ begin
     OleCheck(s.Read(@d[0],l,@l));
     if l<>0 then
      begin
-      if FBuffer<>nil then Flush;
+      if FBufferSize<>0 then Flush;
       c.BufferLength:=l;
       HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
         HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
@@ -570,40 +564,42 @@ var
   i,l:cardinal;
   c:THTTP_DATA_CHUNK;
 begin
-  if FBuffer<>nil then
+  if FBufferSize<>0 then
    begin
-    i:=FBuffer.Position;
+    i:=ContentBuffer.Position;
     if i<>0 then
      begin
       ZeroMemory(@c,SizeOf(THTTP_DATA_CHUNK));
       c.DataChunkType:=HttpDataChunkFromMemory;
-      c.pBuffer:=FBuffer.Memory;
+      c.pBuffer:=ContentBuffer.Memory;
       c.BufferLength:=i;
       HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FReq.RequestId,
         HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
         1,@c,l,nil,0,nil,nil));
-      FBuffer.Position:=0;
+      ContentBuffer.Position:=0;
      end;
    end;
 end;
 
 procedure TXxmHSys1Context.SetBufferSize(ABufferSize: Integer);
+var
+  b:boolean;
 begin
+  b:=FBufferSize<>0;
   inherited;
   if ABufferSize=0 then
    begin
-    if FBuffer<>nil then
+    if b then
      begin
       Flush;
-      FBuffer.Free;
-      FBuffer:=nil;
+      //FreeAndNul(ContentBuffer);?
      end;
    end
   else
    begin
-    if FBuffer=nil then FBuffer:=TMemoryStream.Create;//TODO: tmp file when large buffer
-    if FBuffer.Position>ABufferSize then Flush;
-    FBuffer.Size:=ABufferSize;
+    if ContentBuffer=nil then ContentBuffer:=TMemoryStream.Create;//TODO: tmp file when large buffer
+    if ContentBuffer.Position>ABufferSize then Flush;
+    if ContentBuffer.Size<ABufferSize then ContentBuffer.Size:=ABufferSize;
    end;
 end;
 

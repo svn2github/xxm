@@ -100,7 +100,7 @@ Conditionals=
 DebugSourceDirs=
 UsePackages=0
 [Parameters]
-RunParams=demo
+RunParams=demo proto
 HostApplication=
 Launcher=
 UseLauncher=0
