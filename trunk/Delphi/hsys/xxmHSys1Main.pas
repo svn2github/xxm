@@ -120,6 +120,9 @@ begin
   FQueryStringIndex:=1;
   FSessionID:='';//see GetSessionID
   FRedirectPrefix:='';
+
+  //TODO: logging
+
 end;
 
 destructor TXxmHSys1Context.Destroy;

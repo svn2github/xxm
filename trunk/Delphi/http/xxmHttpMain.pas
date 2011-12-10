@@ -532,7 +532,6 @@ const
 var
   s:AnsiString;
   l:cardinal;
-  d:array of byte;
 begin
   if Data<>'' then
    begin
@@ -553,31 +552,22 @@ begin
       aeUtf16:
        begin
         l:=Length(Data)*2;
-        SetLength(d,l);
-        Move(Data[1],d[0],l);
+        if FBufferSize=0 then FSocket.SendBuf(Data[1],l) else ContentBuffer.Write(Data[1],l);
        end;
       aeUtf8:
        begin
         s:=UTF8Encode(Data);
         l:=Length(s);
-        SetLength(d,l);
-        Move(s[1],d[0],l);
+        if FBufferSize=0 then FSocket.SendBuf(s[1],l) else ContentBuffer.Write(s[1],l);
        end;
       else
        begin
         s:=Data;
         l:=Length(s);
-        SetLength(d,l);
-        Move(s[1],d[0],l);
+        if FBufferSize=0 then FSocket.SendBuf(s[1],l) else ContentBuffer.Write(s[1],l);
        end;
     end;
-    if FBufferSize=0 then
-      FSocket.SendBuf(d[0],l)
-    else
-     begin
-      ContentBuffer.Write(d[0],l);
-      if ContentBuffer.Position>=FBufferSize then Flush;
-     end;
+    if (FBufferSize<>0) and (ContentBuffer.Position>=FBufferSize) then Flush;
    end;
 end;
 
