@@ -281,7 +281,6 @@ begin
           if Connected then
            begin
             //TODO: consider HSE_REQ_SEND_CUSTOM_ERROR?
-            //TODO: get fragment 500.xxm?
             try
               if FPostData=nil then y:='none' else y:=IntToStr(FPostData.Size)+' bytes';
             except

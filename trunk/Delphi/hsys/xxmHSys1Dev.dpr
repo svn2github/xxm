@@ -1,6 +1,7 @@
 program xxmHSys1Dev;
 
 {$R '..\common\xxmData.res' '..\common\xxmData.rc'}
+{$R '..\common\xxmDataDev.res' '..\common\xxmDataDev.rc'}
 
 uses
   SysUtils,
