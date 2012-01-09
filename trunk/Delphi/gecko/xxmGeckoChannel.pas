@@ -867,6 +867,7 @@ var
 begin
   //TODO:
   //if 307 then forward as POST else as GET? (see RedirectSync)
+  CheckHeaderNotSent;
   if FRedirectionLimit=0 then
    begin
     Cancel(NS_ERROR_REDIRECT_LOOP);

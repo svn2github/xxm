@@ -526,6 +526,7 @@ var
   i:integer;
 begin
   inherited;
+  CheckHeaderNotSent;
   if Relative then
    begin
     //TODO: proper combine?
