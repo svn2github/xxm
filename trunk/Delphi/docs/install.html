@@ -127,7 +127,8 @@ IIS configuration allows to route files of a certain file-extension to an ISAPI 
 <dd>xxmApacheAU checks if there is a .xxu file in the directory of the .xxl file, and if so, unloads the project, replaces the xxl file and reloads the project (auto-update).</dd>
 </dl>
 
-<p>To configure Apache to use the xxm Apache handler, add a section similar to the example below to the <code>httpd.conf</code> file.</p>
+<p>To configure Apache to use the xxm Apache handler, add a section similar to the example below to the <code>httpd.conf</code> file.<br />
+<b>Attention:</b> use forward slash as path delimiter.</p>
 
 <pre>
 LoadModule xxm_module "C:/path/to/xxm/binaries/xxmApache.dll"

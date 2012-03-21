@@ -22,7 +22,6 @@ type
     FCookieIdx: TParamIndexes;
     procedure ServerFunction(HSERRequest: DWORD; Buffer: Pointer; Size, DataType: LPDWORD);
   protected
-
     function GetSessionID: WideString; override;
     procedure DispositionAttach(FileName: WideString); override;
     procedure SendRaw(Data: WideString); override;
