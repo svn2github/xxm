@@ -251,23 +251,31 @@ end;
 procedure TEditProjectMainForm.btnRegisterLocalClick(Sender: TObject);
 var
   r:TRegistry;
-  s:AnsiString;
+  s,t,u:AnsiString;
 begin
   if CheckModified then
    begin
-    s:=txtProjectName.Text;
-    if s='' then raise Exception.Create('Project name required');
+    t:=txtProjectName.Text;
+    if t='' then raise Exception.Create('Project name required');
+    s:=ProjectFolder+t+'.xxl';
     r:=TRegistry.Create;
     try
       r.RootKey:=HKEY_CURRENT_USER;//HKEY_LOCAL_MACHINE;
-      r.OpenKey('\Software\xxm\local\'+s,true);
-      r.WriteString('',ProjectFolder+s+'.xxl');
-      r.DeleteValue('Signature');
-      //TODO: default settings?
+      r.OpenKey('\Software\xxm\local\'+t,true);
+      u:=r.ReadString('');
+      if (u='') or (u=s) or (MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+
+        '" was already registered as'#13#10'  '+u+
+        #13#10'Do you want to overwrite this registration?'#13#10'  '+s),
+        'xxm Project',MB_OKCANCEL or MB_ICONQUESTION or MB_SYSTEMMODAL)=idOK) then
+       begin
+        r.WriteString('',s);
+        r.DeleteValue('Signature');
+        //TODO: default settings?
+       end;
     finally
       r.Free;
     end;
-    MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+s+'" registered.'),
+    MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered.'),
       'xxm Project',MB_OK or MB_ICONINFORMATION);
    end;
 end;
