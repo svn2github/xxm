@@ -46,6 +46,7 @@ type
     actIncludePas: TAction;
     OpenDialog2: TOpenDialog;
     Includeunit2: TMenuItem;
+    StatusBar1: TStatusBar;
     procedure Exit1Click(Sender: TObject);
     procedure txtChange(Sender: TObject);
     procedure tvFilesCreateNodeClass(Sender: TCustomTreeView;
@@ -519,6 +520,7 @@ begin
       x:=ProjectData.createElement('Resource');
       y:=ProjectData.createElement('Path');
       y.text:=Copy(s,2,Length(s));
+      x.appendChild(y);
       n.ImageIndex:=iiFileIncluded;
      end;
     //more?
@@ -562,11 +564,19 @@ procedure TEditProjectMainForm.tvFilesChange(Sender: TObject;
   Node: TTreeNode);
 var
   n:TTreeNode;
+  s:string;
 begin
   n:=tvFiles.Selected;
   actInclude.Enabled:=(n<>nil) and (n.ImageIndex in [iiPas,iiFile]);
   actExclude.Enabled:=(n<>nil) and (n.ImageIndex in [iiPasIncluded,iiFileIncluded]);
   actDelete.Enabled:=(n<>nil);
+  s:='';
+  while n<>nil do
+   begin
+    s:='\'+n.Text+s;
+    n:=n.Parent;
+   end;
+  StatusBar1.Panels[0].Text:=Copy(s,2,Length(s));
 end;
 
 procedure TEditProjectMainForm.actRefreshExecute(Sender: TObject);

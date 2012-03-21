@@ -1,8 +1,8 @@
 object EditProjectMainForm: TEditProjectMainForm
   Left = 457
   Top = 125
-  Width = 425
-  Height = 469
+  Width = 435
+  Height = 502
   Caption = 'xxm Project Properties'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -94,6 +94,16 @@ object EditProjectMainForm: TEditProjectMainForm
         OnExpanding = tvFilesExpanding
       end
     end
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 425
+    Width = 419
+    Height = 19
+    Panels = <
+      item
+        Width = 50
+      end>
   end
   object MainMenu1: TMainMenu
     Left = 144
