@@ -47,6 +47,8 @@ type
     OpenDialog2: TOpenDialog;
     Includeunit2: TMenuItem;
     StatusBar1: TStatusBar;
+    btnRegisterFile: TButton;
+    OpenDialog3: TOpenDialog;
     procedure Exit1Click(Sender: TObject);
     procedure txtChange(Sender: TObject);
     procedure tvFilesCreateNodeClass(Sender: TCustomTreeView;
@@ -68,6 +70,7 @@ type
     procedure tvFilesChange(Sender: TObject; Node: TTreeNode);
     procedure actRefreshExecute(Sender: TObject);
     procedure actIncludePasExecute(Sender: TObject);
+    procedure btnRegisterFileClick(Sender: TObject);
   private
     Modified:boolean;
     ProjectPath,ProjectFolder:AnsiString;
@@ -271,12 +274,12 @@ begin
         r.WriteString('',s);
         r.DeleteValue('Signature');
         //TODO: default settings?
+        MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered.'),
+          'xxm Project',MB_OK or MB_ICONINFORMATION);
        end;
     finally
       r.Free;
     end;
-    MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered.'),
-      'xxm Project',MB_OK or MB_ICONINFORMATION);
    end;
 end;
 
@@ -653,6 +656,66 @@ begin
     ProjectData.documentElement.appendChild(ProjectData.createTextNode(#13#10#9));
     ProjectData.documentElement.appendChild(Result);
     ProjectData.documentElement.appendChild(ProjectData.createTextNode(#13#10));
+   end;
+end;
+
+procedure TEditProjectMainForm.btnRegisterFileClick(Sender: TObject);
+var
+  fn,s,t,u:AnsiString;
+  doc:DOMDocument;
+  x,y:IXMLDOMElement;
+begin
+  if CheckModified then
+   begin
+    t:=txtProjectName.Text;
+    if t='' then raise Exception.Create('Project name required');
+    s:=ProjectFolder+t+'.xxl';
+    if OpenDialog3.Execute then
+     begin
+      fn:=OpenDialog3.FileName;
+      doc:=CoDOMDocument.Create;
+      if FileExists(fn) then
+       begin
+        if not(doc.load(fn)) then
+          raise Exception.Create('Loading xxm.xml failed:'#13#10+doc.parseError.reason);
+       end
+      else
+        doc.loadXML('<ProjectRegistry />');
+      x:=doc.documentElement.selectSingleNode('Project[@Name="'+t+'"]') as IXMLDOMElement;
+      if x=nil then u:='' else
+       begin
+        y:=x.selectSingleNode('ModulePath') as IXMLDOMElement;
+        if y=nil then u:='[<Project Name="'+t+'"> but no <ModulePath> found]' else u:=y.text;
+       end;
+      if (u='') or (u=s) or (MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+
+        '" was already registered as'#13#10'  '+u+
+        #13#10'Do you want to overwrite this registration?'#13#10'  '+s),
+        'xxm Project',MB_OKCANCEL or MB_ICONQUESTION or MB_SYSTEMMODAL)=idOK) then
+       begin
+        if x=nil then
+         begin
+          x:=doc.createElement('Project');
+          x.setAttribute('Name',t);
+          doc.documentElement.appendChild(doc.createTextNode(#13#10#9));
+          doc.documentElement.appendChild(x);
+          doc.documentElement.appendChild(doc.createTextNode(#13#10));
+         end
+        else
+         begin
+          x.removeAttribute('Signature');
+          x.removeAttribute('Alias');//?
+         end;
+        if y=nil then
+         begin
+          y:=doc.createElement('ModulePath');
+          x.appendChild(y);
+         end;
+        y.text:=s;
+        doc.save(fn);
+        MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered with "'+fn+'".'),
+          'xxm Project',MB_OK or MB_ICONINFORMATION);
+       end;
+     end;
    end;
 end;
 

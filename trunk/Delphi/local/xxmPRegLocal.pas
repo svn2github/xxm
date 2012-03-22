@@ -100,12 +100,12 @@ begin
         r.WriteString('',s);
         r.DeleteValue('Signature');
         //TODO: default settings?
+        MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered.'),
+          'xxm Local Handler',MB_OK or MB_ICONINFORMATION or MB_SYSTEMMODAL);
        end;
     finally
       r.Free;
     end;
-    MessageBoxA(GetDesktopWindow,PAnsiChar('Project "'+t+'" registered.'),
-      'xxm Local Handler',MB_OK or MB_ICONINFORMATION or MB_SYSTEMMODAL);
    end;
 end;
 
