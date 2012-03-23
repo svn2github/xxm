@@ -25,7 +25,7 @@ Depending on what you require some library or executable may be better than the 
 <li><a href="#local">xxmLocal</a>: Internet Explorer</li>
 <li><a href="#firefox">xxmGecko</a>: Firefox</li>
 <li><a href="#isapi">xxmIsapi</a>: IIS</li>
-<li><a href="#apache">xxmApache</a>: mod_xxm, Apache 2.2 module</li>
+<li><a href="#apache">xxmAhttpd</a>: mod_xxm, Apache 2.2 module</li>
 <li><a href="#httpapi">xxmHSys1</a>: HTTPAPI v1 <span class="newver">1.1.5</span></li>
 <li><a href="#cgi">xxmCGI</a>: CGI with Apache, IIS, ...</li>
 <li><a href="#http">xxmHttp</a>: stand-alone</li>
@@ -113,31 +113,31 @@ IIS configuration allows to route files of a certain file-extension to an ISAPI 
 <p>To disable creating a copy of the <code>.xxl</code> file to load, add attribute <code>LoadCopy="0"</code> to the project entry.</p>
 <p>If you want to host only one single xxm project, add a <code>SingleProject</code> attribute to the ProjectRegistry document element, to refer to a project definition.</p>
 
-<p class="title"><a name="apache"></a>xxmApache (mod_xxm, Apache 2.2 module)</p>
+<p class="title"><a name="apache"></a>xxmAhttpd (mod_xxm, Apache 2.2 module)</p>
 <p>Use an Apache handler to run xxm projects with <a href="http://projects.apache.org/projects/http_server.html">Apache HTTP server</a>.</p>
 
 <dl>
-<dt>xxmApache.dll</dt>
+<dt>xxmAhttpd.dll</dt>
 <dd>The default Apache module to load xxm projects</dd>
-<dt>xxmApacheDev.dll</dt>
-<dd>xxmApacheDev checks the project's xxmp file if any files have changed. If so, it unloads the project, generates source code where needed, compiles the project and reloads it. If files were added or removed, they are added to the xxmp file.<br />
+<dt>xxmAhttpdDev.dll</dt>
+<dd>xxmAhttpdDev checks the project's xxmp file if any files have changed. If so, it unloads the project, generates source code where needed, compiles the project and reloads it. If files were added or removed, they are added to the xxmp file.<br />
 <b>Attention:</b> to compile a project, the current user may require access to common libraries and source files. Check which credentials are used to run Apache.<br />
-<b>Please don't use xxmApacheDev.dll in a live environment.</b></dd>
-<dt>xxmApacheAU.dll</dt>
-<dd>xxmApacheAU checks if there is a .xxu file in the directory of the .xxl file, and if so, unloads the project, replaces the xxl file and reloads the project (auto-update).</dd>
+<b>Please don't use xxmAhttpdDev.dll in a live environment.</b></dd>
+<dt>xxmAhttpdAU.dll</dt>
+<dd>xxmAhttpdAU checks if there is a .xxu file in the directory of the .xxl file, and if so, unloads the project, replaces the xxl file and reloads the project (auto-update).</dd>
 </dl>
 
 <p>To configure Apache to use the xxm Apache handler, add a section similar to the example below to the <code>httpd.conf</code> file.<br />
 <b>Attention:</b> use forward slash as path delimiter.</p>
 
 <pre>
-LoadModule xxm_module "C:/path/to/xxm/binaries/xxmApache.dll"
+LoadModule xxm_module "C:/path/to/xxm/binaries/xxmAhttpd.dll"
 &lt;Location /test&gt;
 SetHandler xxm-handler
 &lt;/Location&gt;
 </pre>
 
-<p><i>//TODO: document xxmApache's project registry</i></p>
+<p><i>//TODO: document xxmAhttpd's project registry</i></p>
 
 <p class="title"><a name="httpapi"></a>xxmHSys1 (HTTPAPI v1) <span class="newver">1.1.5</span></p>
 <p>xxmHSys processes use <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa364510.aspx">HTTPAPI</a> calls to respond to HTTP requests handled by <code>http.sys</code> within the Windows kernel.</p>
