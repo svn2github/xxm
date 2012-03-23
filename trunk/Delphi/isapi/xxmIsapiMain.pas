@@ -650,20 +650,9 @@ begin
 end;
 
 procedure TXxmIsapiContext.SetBufferSize(ABufferSize: integer);
-var
-  b:boolean;
 begin
-  b:=FBufferSize<>0;
   inherited;
-  if ABufferSize=0 then
-   begin
-    if b then
-     begin
-      Flush;
-      //FreeAndNil(ContentBuffer);?
-     end;
-   end
-  else
+  if ABufferSize<>0 then
    begin
     if ContentBuffer=nil then ContentBuffer:=TMemoryStream.Create;//TODO: tmp file when large buffer
     if ContentBuffer.Position>ABufferSize then Flush;

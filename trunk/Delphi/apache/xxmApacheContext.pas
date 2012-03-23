@@ -424,7 +424,7 @@ begin
    begin
     if FBuffer<>nil then
      begin
-      Flush;
+      //assert Flush called by inherited
       FBuffer.Free;
       FBuffer:=nil;
      end;
