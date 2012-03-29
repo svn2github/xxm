@@ -487,6 +487,10 @@ var
   head:THSE_SEND_HEADER_EX_INFO;
   s,t:AnsiString;
 begin
+  //TODO: only IIS7 or higher? see http://support.microsoft.com/kb/946086
+  ecb.ServerSupportFunction(ecb.ConnID,HSE_REQ_SET_FLUSH_FLAG,pointer(true),nil,nil);
+
+  //send header
   s:=IntToStr(StatusCode)+' '+StatusText;
   head.pszStatus:=PAnsiChar(s);
   head.cchStatus:=Length(s);
