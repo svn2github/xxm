@@ -57,10 +57,9 @@ begin
   inherited;
 end;
 
-procedure TXxmFragmentRegistry.RegisterClass(FName: AnsiString;
-  FType: TXxmFragmentClass);
+procedure TXxmFragmentRegistry.RegisterClass(FName: AnsiString; FType: TXxmFragmentClass);
 begin
-  Registry.AddObject(FName,TObject(FType));
+  Registry.AddObject(string(FName),TObject(FType));
 end;
 
 function TXxmFragmentRegistry.GetFragment(Project: TxxmProject;
