@@ -635,6 +635,9 @@ begin
   FSocket.SendBuf(d[0],l);
   if FResHeaders['Content-Length']<>'' then FKeepConnection:=true;
   //TODO: transfer encoding chunked
+
+  //clear buffer just in case
+  if ContentBuffer<>nil then ContentBuffer.Position:=0;
 end;
 
 procedure TXxmHttpContext.AddResponseHeader(Name, Value: WideString);
