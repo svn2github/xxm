@@ -369,7 +369,8 @@ begin
    end;
   SetLength(t,q-1);
   Result:=UTF8ToWideString(t);
-  if (q<>0) and (Result<>'') then Result:=WideString(t);
+  //plain decode in case of encoding error?
+  if (q>1) and (Result='') then Result:=WideString(t);
 end;
 
 function XxmVersion: TXxmVersion;
