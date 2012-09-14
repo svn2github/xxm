@@ -97,7 +97,7 @@ begin
     raise EXxmProjectNotFound.Create(StringReplace(
       SXxmProjectNotFound,'__',Name,[]));
   x.setAttribute('Signature',FSignature);
-  x.ownerDocument.save(XxmProjectCache.FRegFilePath);
+  x.ownerDocument.save(XxmProjectCache.FRegFilePath+XxmRegFileName);
 end;
 
 function TXxmProjectCacheEntry.GetAllowInclude: boolean;
