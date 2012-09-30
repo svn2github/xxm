@@ -603,7 +603,7 @@ var
 begin
   if OpenDialog2.Execute then
    begin
-      s:=OpenDialog2.FileName;
+    s:=OpenDialog2.FileName;
     if LowerCase(Copy(s,1,Length(ProjectFolder)))=LowerCase(ProjectFolder) then
       raise Exception.Create('Use include on a tree node to include a file in the project folder.');//TODO
     //build relative to ProjectFolder
@@ -614,6 +614,7 @@ begin
     while (i>0) and (s[i]<>PathDelim) do dec(i);
     //assert (i<=l)
     s:=Copy(s,i+1,j-i);
+    inc(i);
     while i<=l do
      begin
       if ProjectFolder[i]=PathDelim then s:='..'+PathDelim+s;
