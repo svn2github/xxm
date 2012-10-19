@@ -19,25 +19,18 @@ end;
 
 interface
 
-uses xxm, Contnrs;
+uses xxm, Contnrs, SQLiteData;
 
 type
   TXxmSession=class(TObject)
   private
     FSessionID:WideString;
+	function GetDbCon: TSQLiteConnection;
   public
-
-    //TODO: full properties?
-    Authenticated:boolean;
-    Name:AnsiString;
-
     constructor Create(Context: IXxmContext);
-	
-	//CSRF protection by posting session cookie value
-	function FormProtect:WideString;
-	procedure CheckProtect;
-	
+    destructor Destroy; override;
     property SessionID:WideString read FSessionID;
+	property DbCon: TSQLiteConnection read GetDbCon;
   end;
 
 procedure SetSession(Context: IXxmContext);
@@ -48,7 +41,7 @@ threadvar
 
 implementation
 
-uses SysUtils;
+uses Windows, SysUtils;
 
 //TODO: something better than plain objectlist
 var
@@ -81,6 +74,9 @@ begin
   Session:=nil;
 end;
 
+threadvar
+  ThreadDbCon:TSQLiteConnection;
+
 { TxxmSession }
 
 constructor TXxmSession.Create(Context: IXxmContext);
@@ -88,30 +84,26 @@ begin
   inherited Create;
   FSessionID:=Context.SessionID;
   //TODO: initiate expiry
-
-  //default values
-  Authenticated:=false;
-  Name:='';
-
+  //FDbCon:=TSQLiteConnection.Create(...'demo.db');
 end;
 
-function TXxmSession.FormProtect:WideString;
+destructor TXxmSession.Destroy;
 begin
-  Result:='<input type="hidden" name="XxmSessionID" value="'+HTMLEncode(FSessionID)+'" />';
+  //FDbCon.Free;
+  inherited;
 end;
 
-procedure TXxmSession.CheckProtect;
+function TXxmSession.GetDbCon: TSQLiteConnection;
 var
-  p:IXxmParameter;
+  fn:string;
 begin
-  if Context.ContextString(csVerb)='POST' then
+  if ThreadDbCon=nil then 
    begin
-    p:=Context.Parameter['XxmSessionID'];
-	if not((p is IxxmParameterPost) and (p.Value=FSessionID)) then
-	  raise Exception.Create('Invalid POST source detected.');
-   end
-  else
-    raise Exception.Create('xxmSession.CheckProtect only works on POST requests.');
+    SetLength(fn,1024);
+    SetLength(fn,GetModuleFileName(HInstance,PChar(fn),1024));
+    ThreadDBCon:=TSQLiteConnection.Create(ExtractFilePath(fn)+'demo.db');//TODO from setting?
+   end;
+  Result:=ThreadDbCon;
 end;
 
 initialization
