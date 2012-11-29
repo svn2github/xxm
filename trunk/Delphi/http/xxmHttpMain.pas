@@ -378,7 +378,7 @@ begin
         FPostTempFile:=FPostTempFile+'xxm_'+IntToHex(integer(Self),8)+'_'+IntToHex(GetTickCount,8)+'.dat';
         s:=TFileStream.Create(FPostTempFile,fmCreate);
        end;
-      s.Size:=StrToInt(x);
+      s.Size:=si;
       FPostData:=THandlerReadStreamAdapter.Create(FSocket,si,s);
      end;
 
