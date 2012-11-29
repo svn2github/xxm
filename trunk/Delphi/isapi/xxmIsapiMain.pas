@@ -24,7 +24,7 @@ type
   protected
     function GetSessionID: WideString; override;
     procedure DispositionAttach(FileName: WideString); override;
-    procedure SendRaw(Data: WideString); override;
+    procedure SendRaw(const Data: WideString); override;
     procedure SendStream(s: IStream); override;
     function ContextString(cs: TXxmContextString): WideString; override;
     function Connected: Boolean; override;
@@ -164,7 +164,7 @@ end;
 
 { TXxmIsapiContext }
 
-function GetVar(pecb: PEXTENSION_CONTROL_BLOCK; key:AnsiString):AnsiString;
+function GetVar(pecb: PEXTENSION_CONTROL_BLOCK; const key:AnsiString):AnsiString;
 var
   l:cardinal;
 begin
@@ -385,7 +385,7 @@ begin
     ['filename']:=FileName;
 end;
 
-procedure TXxmIsapiContext.SendRaw(Data: WideString);
+procedure TXxmIsapiContext.SendRaw(const Data: WideString);
 const
   Utf8ByteOrderMark=#$EF#$BB#$BF;
   Utf16ByteOrderMark=#$FF#$FE;
