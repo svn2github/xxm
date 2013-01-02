@@ -1,10 +1,12 @@
-unit xxmHSys1Main;
+unit xxmHSysMain;
 
 interface
 
 uses
   SysUtils, ActiveX, xxm, Classes, xxmContext, xxmPReg, xxmThreadPool,
-  xxmHSysPReg, xxmParams, xxmParUtils, xxmHeaders, httpapi1;
+  {$IFDEF HSYS1}httpapi1,{$ENDIF}
+  {$IFDEF HSYS2}httpapi2,{$ENDIF}
+  xxmHSysPReg, xxmParams, xxmParUtils, xxmHeaders;
 
 const
   XxmHSys1ContextDataSize=$1000;
@@ -79,7 +81,7 @@ type
 
 implementation
 
-uses Windows, Variants, ComObj, xxmCommonUtils, WinSock, xxmHSysHeaders;
+uses Windows, Variants, ComObj, xxmCommonUtils, xxmHSysHeaders, WinSock;
 
 resourcestring
   SXxmMaximumHeaderLines='Maximum header lines exceeded.';
