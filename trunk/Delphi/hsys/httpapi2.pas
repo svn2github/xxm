@@ -146,6 +146,7 @@ type
     ReceiveMutualAuth: BOOL;
     ReceiveContextHandle: BOOL;
     DisableNTLMCredentialCaching: BOOL;
+    ExFlags: UCHAR;
     DigestParams: THTTP_SERVER_AUTHENTICATION_DIGEST_PARAMS;
     BasicParams: THTTP_SERVER_AUTHENTICATION_BASIC_PARAMS; 
   end;
@@ -607,6 +608,7 @@ type
     pEntityChunks: PHTTP_DATA_CHUNK;
     RawConnectionId: THTTP_RAW_CONNECTION_ID;
     pSslInfo: PHTTP_SSL_INFO;
+    xPadding1: DWORD;
     RequestInfoCount: USHORT;
     pRequestInfo: PHTTP_REQUEST_INFO;  
   end;
