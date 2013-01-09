@@ -154,9 +154,9 @@ type
   THTTP_SERVER_AUTHENTICATION_INFO = record
     Flags: THTTP_PROPERTY_FLAGS;
     AuthSchemes: ULONG;
-    ReceiveMutualAuth: BOOL;
-    ReceiveContextHandle: BOOL;
-    DisableNTLMCredentialCaching: BOOL;
+    ReceiveMutualAuth: ByteBool;
+    ReceiveContextHandle: ByteBool;
+    DisableNTLMCredentialCaching: ByteBool;
     ExFlags: UCHAR;
     DigestParams: THTTP_SERVER_AUTHENTICATION_DIGEST_PARAMS;
     BasicParams: THTTP_SERVER_AUTHENTICATION_BASIC_PARAMS; 
