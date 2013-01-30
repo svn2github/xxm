@@ -1,6 +1,6 @@
 v1.1.7.290
 - xxmString: TStringContext.SaveToFile respects AutoEncoding parameter
-- xxm.xml project registry revised, no longer using a resident MSXML object.
+- xxm.xml project registry revised, MSXML now only used for parsing.
 - 'embed HTML syntax': now supports start characters e.g. <p>>=i<</p> instead of <p>[[=i]]</p>
 - xxmProject include unit files dialog supports multi-select
 - xxmIsapi: fixed Redirect with https
