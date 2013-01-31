@@ -801,6 +801,7 @@ begin
 end;
 
 initialization
+  XxmProjectCache:=TXxmProjectCache.Create;
   IsapiHandlerPool:=TXxmIsapiHandlerPool.Create;
 finalization
   //assert IsapiHandlerPool=nil by TerminateExtension
