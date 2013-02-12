@@ -111,15 +111,20 @@ end;
 constructor TXxmProjectCacheEntry.Create(Name: WideString);
 begin
   inherited Create(Name);
-  FFilePath:='';
   FUserName:='';
 end;
 
 procedure TXxmProjectCacheEntry.LoadProject;
 begin
-  if not ProjectLoaded and ((FFilePath='') or not(FileExists(FFilePath))) then GetRegisteredPath;//refresh
+  if not ProjectLoaded and ((FFilePath='') or not(FileExists(FFilePath))) then
+    GetRegisteredPath;//refresh
   inherited;
-  if not ProjectLoaded then FFilePath:='';//force refresh next time
+  if not ProjectLoaded then
+   begin
+    //force refresh next time
+    FFilePath:='';
+    FLoadPath:='';
+   end;
 end;
 
 function TXxmProjectCacheEntry.GetSessionCookie(Name: WideString): WideString;
@@ -190,26 +195,42 @@ var
   r:TRegistry;
   k:AnsiString;
   i:integer;
+  LoadCopy:boolean;
 begin
   k:='\Software\xxm\local\'+Name;
   r:=TRegistry.Create;
   try
     r.RootKey:=HKEY_CURRENT_USER;
     if r.OpenKeyReadOnly(k) then
-      FFilePath:=r.ReadString('')
+     begin
+      FFilePath:=r.ReadString('');
+      LoadCopy:=not(r.ValueExists('LoadCopy')) or r.ReadBool('LoadCopy');
+     end
     else
      begin
       r.RootKey:=HKEY_LOCAL_MACHINE;
       if r.OpenKeyReadOnly(k) then
-        FFilePath:=r.ReadString('')
+       begin
+        FFilePath:=r.ReadString('');
+        LoadCopy:=not(r.ValueExists('LoadCopy')) or r.ReadBool('LoadCopy');
+       end
       else
+       begin
         FFilePath:='';
+        FLoadPath:='';
+        LoadCopy:=false;//counter warning
+       end;
      end;
     if FFilePath='' then
       raise EXxmProjectNotFound.Create(StringReplace(
         SXxmProjectNotFound,'__',Name,[]));
 
     //TODO: alias? (see xxm.xml)
+
+    if r.ValueExists('Signature') then
+      FSignature:=r.ReadString('Signature')
+    else
+      FSignature:='';
 
     //TODO: extra flags,settings?
 
@@ -218,10 +239,8 @@ begin
     while (i<>0) and (FFilePath[i]<>PathDelim) do dec(i);
     FCookiePath:=Copy(FFilePath,1,i);
 
-    if r.ValueExists('Signature') then
-      FSignature:=r.ReadString('Signature')
-    else
-      FSignature:='';
+    if LoadCopy then
+      FLoadPath:=FFilePath+'_'+IntToHex(GetCurrentProcessId,4);
 
   finally
     r.Free;
