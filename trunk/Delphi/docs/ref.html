@@ -30,6 +30,7 @@
 <li><a href="#htmlencode">HTMLEncode</a></li>
 <li><a href="#headers">Headers</a> <span class="newver">1.1.0</span></li>
 <li><a href="#parservalues">Override parser values</a> <span class="newver">1.1.3</span></li>
+<li><a href="#projectintf">Optional project interfaces</a></li>
 <li><a href="#uploadprogress">Upload progress</a> <span class="newver">1.1.4</span></li>
 </ul>
 
@@ -147,7 +148,10 @@ This allows to add used units or declarations ready for use in all pages and inc
 
 <dt><code>procedure UnloadFragment(Fragment: IXxmFragment);</code></dt>
 <dd>Pages and include fragments are passed to the UnloadFragment procedure to allow the xxm project to perform clean-up or re-use of object instances.</dd>
+</dl>
+<p>The TXxmProject object can also implement extra interfaces to add functionality, see <a href="#projectintf">optional project interfaces</a></p>
 
+<dl>
 <dt class="title"><a name="xxmfragment"></a><a name="xxmpage"></a><a name="xxminclude"></a><code>
   TXxmFragment = class(TInterfacedObject, IXxmFragment)<br />
   TXxmPage = class(TXxmFragment, IXxmPage)<br />
@@ -162,19 +166,6 @@ This allows to add used units or declarations ready for use in all pages and inc
 <li>Caller: set to the fragment that calls Context.Include, nil otherwise</li>
 <li>Values, Objects: values and objects as passed onto Context.Include by the calling fragment</li>
 </ul>
-</dd>
-
-<dt class="title"><code>IXxmProjectEvents = interface</code> <span class="newver">1.1.4</span></dt>
-<dd>The project object can optionally expose this interface. If it does, the xxm handler will call its methods in certain events:</dd>
-
-<dt><code>function HandleException(Context:IxxmContext;PageClass:WideString;Ex:Exception):boolean;</code> <span class="newver">1.1.4</span></dt>
-<dd>An exception occurred while building a page
-<ul>
-<li>Context: the IXxmContext the page was being built with</li>
-<li>PageClass: an informational display of which fragment the exception occurred in, may contain a path of fragments that included eachother</li>
-<li>Ex: the exception object that was raised</li>
-</ul>
-Return whether the exception was handled. Return false to have the xxm handler send the default exception message.
 </dd>
 
 <dt class="title"><code><a name="xxmcontext"></a>IXxmContext = interface</code></dt>
@@ -395,6 +386,44 @@ function URLDecode(Data:string):WideString;
 
 <p>Use an empty value, e.g. <code>[[*=(]]</code>, to reset a parser value to its default value.
 Use <code>[[*]]</code> to reset all parser values to the default values.</p>
+
+<p class="title"><a name="projectintf"></a>Optional project interfaces</p>
+
+<dl>
+<dt class="title"><code>IXxmProjectEvents = interface</code> <span class="newver">1.1.4</span></dt>
+<dd>The project object can optionally expose this interface. If it does, the xxm handler will call its methods in certain events:</dd>
+
+<dt><code>function HandleException(Context:IxxmContext;PageClass:WideString;Ex:Exception):boolean;</code> <span class="newver">1.1.4</span></dt>
+<dd>An exception occurred while building a page
+<ul>
+<li>Context: the IXxmContext the page was being built with</li>
+<li>PageClass: an informational display of which fragment the exception occurred in, may contain a path of fragments that included eachother</li>
+<li>Ex: the exception object that was raised</li>
+</ul>
+Return whether the exception was handled. Return false to have the xxm handler send the default exception message.
+</dd>
+
+<dt class="title"><code>IXxmProjectEvents1 = interface</code> <span class="newver">1.1.8</span></dt>
+<dd>The project object can optionally export this interface. If it does, the xxm handler will call its methods in certain events:</dd>
+
+<dt><code>function HandleException(Context:IXxmContext;PageClass,ExceptionClass,ExceptionMessage:WideString):boolean;</code></dt>
+<dd>An exception occured while building a page (and the project doesn't implement IXxmProjectEvents)<br />
+Use this interface if a Delphi version conflict occurs using <code>IXxmProjectEvents.HandleException</code></dd>
+<ul>
+<li>Context: the IXxmContext the page was being built with</li>
+<li>PageClass: an informational display of which fragment the exception occurred in, may contain a path of fragments that included eachother</li>
+<li>ExceptionClass: the class name of the Exception object</li>
+<li>ExceptionMessage: the message text of the Exception object</li>
+</ul>
+Return whether the exception was handled. Return false to have the xxm handler send the default exception message.
+</dd>
+<dt><code>procedure ReleasingContexts;</code></dt>
+<dd>When the xxm handler is about to unload the project (due to a shutdown or an auto-update or auto-build event),
+it calls <code>ReleasingContexts</code> before it waits for all current page requests to complete.</dd>
+<dt><code>procedure ReleasingProject;</code></dt>
+<dd>When the xxm handler is about to unload the project,
+it calls <code>ReleasingProject</code> after it waited for all current page requests to complete.</dd>
+</dl>
 
 <p class="title"><a name="uploadprogress"></a>Upload progress <span class="newver">1.1.4</span></p>
 
