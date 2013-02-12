@@ -45,6 +45,7 @@ type
 
 var
   XxmProjectCache:TXxmProjectCache;
+  GlobalAllowLoadCopy:boolean;
 
 procedure XxmProjectRegister(
   hwnd:HWND;        // handle to owner window
@@ -239,7 +240,7 @@ begin
     while (i<>0) and (FFilePath[i]<>PathDelim) do dec(i);
     FCookiePath:=Copy(FFilePath,1,i);
 
-    if LoadCopy then
+    if LoadCopy and GlobalAllowLoadCopy then
       FLoadPath:=FFilePath+'_'+IntToHex(GetCurrentProcessId,4);
 
   finally
@@ -360,6 +361,7 @@ begin
 end;
 
 initialization
+  GlobalAllowLoadCopy:=true;
   XxmProjectCache:=nil;//TXxmProjectCache.Create;//see Handler.Start
 finalization
   FreeAndNil(XxmProjectCache);
