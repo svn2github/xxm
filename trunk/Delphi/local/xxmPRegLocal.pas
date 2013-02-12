@@ -361,7 +361,7 @@ begin
 end;
 
 initialization
-  GlobalAllowLoadCopy:=true;
+  GlobalAllowLoadCopy:=false;//:=true;
   XxmProjectCache:=nil;//TXxmProjectCache.Create;//see Handler.Start
 finalization
   FreeAndNil(XxmProjectCache);

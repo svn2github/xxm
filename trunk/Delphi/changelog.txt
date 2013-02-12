@@ -1,7 +1,5 @@
 v1.1.8.?
 - optional project interface: IXxmProjectEvents1
-- xxmLocal now also loads a copy of the xxl by default
-  (disable by adding LoadCopy=0 DWORD registry value)
 
 v1.1.7.292
 - xxmString: TStringContext.SaveToFile respects AutoEncoding parameter
