@@ -62,11 +62,11 @@ type
       SectionType:TXxmPageSection;
     end;
     FIndex:integer;
-    FParserValues:TXxmPageParserValueList;
+    FDefaultParserValues,FParserValues:TXxmPageParserValueList;
     procedure AddSection(Index,Length,LineNr:integer;ps:TXxmPageSection);
     function EOLs(Index: integer): integer;
   public
-    constructor Create;
+    constructor Create(const ParserValues:TXxmPageParserValueList);
     destructor Destroy; override;
     procedure Parse(Data:AnsiString);
     //function GetNext:;
@@ -173,30 +173,17 @@ begin
      end;
 end;
 
-{ }
-
-const
-  DefaultParserValues:TXxmPageParserValueList=(
-    (Code:'Context.Send(';EOLs:0),//pvSend
-    (Code:');';EOLs:0),//pvSendClose
-    (Code:'Context.SendHTML(';EOLs:0),//pvSendHTML
-    (Code:');';EOLs:0),//pvSendHTMLClose
-    //add new above
-    (Code:'';EOLs:0)
-  );
-
-//TODO: project defaults (folder defaults?)
-
 { TXxmPageParser }
 
-constructor TXxmPageParser.Create;
+constructor TXxmPageParser.Create(const ParserValues:TXxmPageParserValueList);
 begin
-  inherited;
+  inherited Create;
   FData:='';
   SectionsCount:=0;
   SectionsSize:=0;
   FIndex:=0;
-  FParserValues:=DefaultParserValues;
+  FDefaultParserValues:=ParserValues;
+  FParserValues:=FDefaultParserValues;
   //TODO: flag enable/disable keep line-numbers?
 end;
 
@@ -427,13 +414,15 @@ var
      end;
   end;
 
-  procedure OpenSend;
+  procedure OpenSend(LineNr:integer);
   begin
     if not InSend then
      begin
-      ss.WriteString('  '+FParserValues[pvSendHTML].Code);
+      ss.WriteString('  '+StringReplace(FParserValues[pvSendHTML].Code,
+        '$l',IntToStr(LineNr),[]));
       map.MapLine(FParserValues[pvSendHTML].EOLs,0);
       InSend:=true;
+
       SendCloseCode:=FParserValues[pvSendHTMLClose].Code;
       SendCloseEOLs:=FParserValues[pvSendHTMLClose].EOLs;
       InString:=false;//assert already false?
@@ -487,9 +476,9 @@ var
       if pv=pv_Unknown then raise Exception.Create('Unknown parse parameter');
       if Length(Code)=1 then
        begin
-        FParserValues[pv]:=DefaultParserValues[pv];
+        FParserValues[pv]:=FDefaultParserValues[pv];
         pv:=Succ(pv);
-        FParserValues[pv]:=DefaultParserValues[pv];//close
+        FParserValues[pv]:=FDefaultParserValues[pv];//close
        end
       else
        begin
@@ -541,15 +530,21 @@ begin
         psSquareBracketsOpen:
          begin
           CloseSend;
-          ss.WriteString('  '+FParserValues[pvSendHTML].Code+'''[['''+FParserValues[pvSendHTMLClose].Code+#13#10);
-          map.MapLine(1+FParserValues[pvSendHTML].EOLs+FParserValues[pvSendHTMLClose].EOLs,
+          ss.WriteString('  '+StringReplace(FParserValues[pvSendHTML].Code,
+            '$l',IntToStr(Sections[Section].LineNr),[])+'''[['''+
+            FParserValues[pvSendHTMLClose].Code+#13#10);
+          map.MapLine(1+FParserValues[pvSendHTML].EOLs+
+            FParserValues[pvSendHTMLClose].EOLs,
             Sections[Section].LineNr);//assert EOLs(Section)=0
          end;
         psSquareBracketsClose:
          begin
           CloseSend;
-          ss.WriteString('  '+FParserValues[pvSendHTML].Code+''']]'''+FParserValues[pvSendHTMLClose].Code+#13#10);
-          map.MapLine(1+FParserValues[pvSendHTML].EOLs+FParserValues[pvSendHTMLClose].EOLs,
+          ss.WriteString('  '+StringReplace(FParserValues[pvSendHTML].Code,
+            '$l',IntToStr(Sections[Section].LineNr),[])+''']]'''+
+            FParserValues[pvSendHTMLClose].Code+#13#10);
+          map.MapLine(1+FParserValues[pvSendHTML].EOLs+
+            FParserValues[pvSendHTMLClose].EOLs,
             Sections[Section].LineNr);//assert EOLs(Section)=0
          end;
         psHTML:
@@ -557,7 +552,7 @@ begin
           //convert into Context.SendHTML(
           p:=Sections[Section].Index;
           q:=p+Sections[Section].Length-1;
-          OpenSend;
+          OpenSend(Sections[Section].LineNr);
           while (p<=q) do
            begin
             if l>=78 then //setting?
@@ -583,12 +578,14 @@ begin
                    end;
                   10..99:
                    begin
-                    ss.WriteString('#'+AnsiChar($30+(b div 10))+AnsiChar($30+(b mod 10)));
+                    ss.WriteString('#'+AnsiChar($30+(b div 10))+
+                      AnsiChar($30+(b mod 10)));
                     inc(l,3);
                    end;
                   100..255:
                    begin
-                    ss.WriteString('#'+AnsiChar($30+(b div 100))+AnsiChar($30+(b div 10 mod 10))+AnsiChar($30+(b mod 10)));
+                    ss.WriteString('#'+AnsiChar($30+(b div 100))+
+                      AnsiChar($30+(b div 10 mod 10))+AnsiChar($30+(b mod 10)));
                     inc(l,4);
                    end;
                 end;
@@ -612,19 +609,23 @@ begin
         psSend:
          begin
           CloseSend;
-          ss.WriteString('  '+FParserValues[pvSend].Code);
+          ss.WriteString('  '+StringReplace(FParserValues[pvSend].Code,
+            '$l',IntToStr(Sections[Section].LineNr),[]));
           ss.Write(FData[Sections[Section].Index],Sections[Section].Length);
           ss.WriteString(FParserValues[pvSendClose].Code+#13#10);
-          map.MapLine(1+FParserValues[pvSend].EOLs+FParserValues[pvSendClose].EOLs+EOLs(Section),
+          map.MapLine(1+FParserValues[pvSend].EOLs+
+            FParserValues[pvSendClose].EOLs+EOLs(Section),
             Sections[Section].LineNr);
          end;
         psSendHTML:
          begin
           CloseSend;
-          ss.WriteString('  '+FParserValues[pvSendHTML].Code);
+          ss.WriteString('  '+StringReplace(FParserValues[pvSendHTML].Code,
+            '$l',IntToStr(Sections[Section].LineNr),[]));
           ss.Write(FData[Sections[Section].Index],Sections[Section].Length);
           ss.WriteString(FParserValues[pvSendHTMLClose].Code+#13#10);
-          map.MapLine(1+FParserValues[pvSendHTML].EOLs+FParserValues[pvSendHTMLClose].EOLs+EOLs(Section),
+          map.MapLine(1+FParserValues[pvSendHTML].EOLs+
+            FParserValues[pvSendHTMLClose].EOLs+EOLs(Section),
             Sections[Section].LineNr);
          end;
         psBody:
@@ -645,7 +646,7 @@ begin
           if Sections[Section].Length=0 then
            begin
             //no parameters: restore defaults
-            FParserValues:=DefaultParserValues;
+            FParserValues:=FDefaultParserValues;
             CloseSend;
            end
           else

@@ -53,6 +53,20 @@ implementation
 
 uses Variants, ComObj, xxmUtilities, xxmProtoParse, xxmPageParse, IniFiles, xxmCommonUtils;
 
+{  }
+
+const
+  DefaultParserValues:TXxmPageParserValueList=(
+    (Code:'Context.Send(';EOLs:0),//pvSend
+    (Code:');';EOLs:0),//pvSendClose
+    (Code:'Context.SendHTML(';EOLs:0),//pvSendHTML
+    (Code:');';EOLs:0),//pvSendHTMLClose
+    //add new above
+    (Code:'';EOLs:0)
+  );
+
+//TODO: project defaults (folder defaults?)
+
 { TXxmWebProject }
 
 const
@@ -236,7 +250,7 @@ begin
   //TODO: autoremove files?
 
   p:=TXxmProtoParser.Create;
-  q:=TXxmPageParser.Create;
+  q:=TXxmPageParser.Create(DefaultParserValues);
   m:=TXxmLineNumbersMap.Create;
   try
     sl:=TStringList.Create;
