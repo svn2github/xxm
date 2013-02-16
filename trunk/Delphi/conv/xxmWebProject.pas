@@ -2,7 +2,7 @@ unit xxmWebProject;
 
 interface
 
-uses Windows, SysUtils, Classes, MSXML2_TLB;
+uses Windows, SysUtils, Classes, MSXML2_TLB, xxmPageParse;
 
 type
   TXxmWebProjectOutput=procedure(Msg:AnsiString);
@@ -11,28 +11,31 @@ type
   private
     Data:DOMDocument;
     DataStartSize:integer;
-    DataFileName,FProjectName,FRootFolder,FSrcFolder,FHandlerPath,FProtoPathDef,FProtoPath:AnsiString;
+    DataFileName,FProjectName,FRootFolder,FSrcFolder,
+    FHandlerPath,FProtoPathDef,FProtoPath:AnsiString;
     RootNode,DataFiles:IXMLDOMElement;
     Modified:boolean;
     Signatures:TStringList;
     FOnOutput:TXxmWebProjectOutput;
+    FParserValues:TXxmPageParserValueList;
 
-    function ForceNode(element:IXMLDOMElement;tagname,id:AnsiString;indentlevel:integer):IXMLDOMElement;
-    function NodesText(element:IXMLDOMElement;xpath:AnsiString):AnsiString;
+    function ForceNode(element:IXMLDOMElement;
+      const tagname,id:AnsiString;indentlevel:integer):IXMLDOMElement;
+    function NodesText(element:IXMLDOMElement;const xpath:AnsiString):AnsiString;
 
-    function ReadString(FilePath:AnsiString):AnsiString;
-    procedure BuildOutput(Msg:AnsiString);
+    function ReadString(const FilePath:AnsiString):AnsiString;
+    procedure BuildOutput(const Msg:AnsiString);
 
-    function CheckTrailingComma(x:AnsiString):AnsiString;
+    function CheckTrailingComma(const x:AnsiString):AnsiString;
   public
 
-    constructor Create(SourcePath:AnsiString;
+    constructor Create(const SourcePath:AnsiString;
       OnOutput:TXxmWebProjectOutput; CanCreate:boolean);
     destructor Destroy; override;
 
     function CheckFiles(Rebuild:boolean):boolean;
     function GenerateProjectFiles(Rebuild: boolean):boolean;
-    function ResolveErrorLines(BuildOutput:AnsiString):AnsiString;
+    function ResolveErrorLines(const BuildOutput:AnsiString):AnsiString;
 
     function Compile:boolean;
     procedure Update;
@@ -51,7 +54,7 @@ type
 
 implementation
 
-uses Variants, ComObj, xxmUtilities, xxmProtoParse, xxmPageParse, IniFiles, xxmCommonUtils;
+uses Variants, ComObj, xxmUtilities, xxmProtoParse, xxmCommonUtils;
 
 {  }
 
@@ -65,6 +68,14 @@ const
     (Code:'';EOLs:0)
   );
 
+  ParserValueElement:array[TXxmPageParserValues] of string=(
+    'SendOpen',
+    'SendClose',
+    'SendHTMLOpen',
+    'SendHTMLClose',
+    ''
+  );
+
 //TODO: project defaults (folder defaults?)
 
 { TXxmWebProject }
@@ -73,13 +84,14 @@ const
   SXxmWebProjectNotFound='Web Project File not found for "__"';
   SXxmWebProjectLoad='Could not read "__"';
 
-constructor TXxmWebProject.Create(SourcePath: AnsiString;
+constructor TXxmWebProject.Create(const SourcePath: AnsiString;
   OnOutput:TXxmWebProjectOutput; CanCreate:boolean);
 var
   x:IXMLDOMElement;
-  i:integer;
+  i,j,l:integer;
   s:AnsiString;
   f:TFileStream;
+  pv:TXxmPageParserValues;
 begin
   inherited Create;
   Modified:=false;
@@ -189,6 +201,24 @@ begin
 
   //TODO: setting sourcepath?
 
+  FParserValues:=DefaultParserValues;
+  pv:=TXxmPageParserValues(0);
+  while (pv<>pv_Unknown) do
+   begin
+    x:=RootNode.selectSingleNode('ParserValues/'+
+      ParserValueElement[pv]) as IXMLDOMElement;
+    if x<>nil then
+     begin
+      s:=x.text;
+      l:=Length(s);
+      j:=0;
+      for i:=1 to l-1 do if (s[i]=#13) and (s[i+1]=#10) then inc(j);
+      FParserValues[pv].Code:=s;
+      FParserValues[pv].EOLs:=j;
+     end;
+    inc(pv);
+   end;
+
   //TODO:
 
   //Settings/@AutoAddFiles
@@ -250,7 +280,7 @@ begin
   //TODO: autoremove files?
 
   p:=TXxmProtoParser.Create;
-  q:=TXxmPageParser.Create(DefaultParserValues);
+  q:=TXxmPageParser.Create(FParserValues);
   m:=TXxmLineNumbersMap.Create;
   try
     sl:=TStringList.Create;
@@ -573,7 +603,8 @@ begin
 
 end;
 
-function TXxmWebProject.ForceNode(element:IXMLDOMElement;tagname,id:AnsiString;indentlevel:integer): IXMLDOMElement;
+function TXxmWebProject.ForceNode(element:IXMLDOMElement;
+  const tagname,id:AnsiString;indentlevel:integer): IXMLDOMElement;
 var
   ind:string;
   i:integer;
@@ -608,7 +639,7 @@ begin
    end;
 end;
 
-function TXxmWebProject.ReadString(FilePath: AnsiString): AnsiString;
+function TXxmWebProject.ReadString(const FilePath: AnsiString): AnsiString;
 var
   f:TFileStream;
   l:int64;
@@ -623,7 +654,7 @@ begin
   end;
 end;
 
-function TXxmWebProject.NodesText(element:IXMLDOMElement;xpath:AnsiString):AnsiString;
+function TXxmWebProject.NodesText(element:IXMLDOMElement;const xpath:AnsiString):AnsiString;
 var
   xl:IXMLDOMNodeList;
   x:IXMLDOMElement;
@@ -791,13 +822,13 @@ begin
   end;
 end;
 
-procedure TXxmWebProject.BuildOutput(Msg: AnsiString);
+procedure TXxmWebProject.BuildOutput(const Msg: AnsiString);
 begin
   FOnOutput(Msg);
 end;
 
 function TXxmWebProject.ResolveErrorLines(
-  BuildOutput: AnsiString): AnsiString;
+  const BuildOutput: AnsiString): AnsiString;
 var
   sl_in,sl_out:TStringList;
   sl_x:integer;
@@ -838,7 +869,7 @@ begin
   end;
 end;
 
-function TXxmWebProject.CheckTrailingComma(x: AnsiString): AnsiString;
+function TXxmWebProject.CheckTrailingComma(const x: AnsiString): AnsiString;
 var
   i:integer;
 begin
