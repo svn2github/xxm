@@ -81,6 +81,7 @@ begin
     if Result<>0 then
      begin
       Result:=FSocket.ReceiveBuf(Buffer,Result);
+      if Result=-1 then RaiseLastOSError;
       FStore.Write(Buffer,Result);
       inc(FPosition,Result);
       inc(FStorePosition,Result);
