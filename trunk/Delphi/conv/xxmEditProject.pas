@@ -53,6 +53,7 @@ type
     cbParserValue: TComboBox;
     txtParserValue: TMemo;
     Label3: TLabel;
+    Label4: TLabel;
     procedure Exit1Click(Sender: TObject);
     procedure txtChange(Sender: TObject);
     procedure tvFilesCreateNodeClass(Sender: TCustomTreeView;

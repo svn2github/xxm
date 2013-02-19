@@ -45,7 +45,7 @@ object EditProjectMainForm: TEditProjectMainForm
       object txtProjectName: TEdit
         Left = 0
         Top = 16
-        Width = 385
+        Width = 377
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         TabOrder = 0
@@ -55,7 +55,7 @@ object EditProjectMainForm: TEditProjectMainForm
       object txtCompileCommand: TEdit
         Left = 0
         Top = 56
-        Width = 385
+        Width = 377
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         TabOrder = 1
@@ -117,6 +117,25 @@ object EditProjectMainForm: TEditProjectMainForm
         Height = 13
         Caption = 'Project parser value defaults: (leave blank for default value)'
       end
+      object Label4: TLabel
+        Left = 0
+        Top = 372
+        Width = 401
+        Height = 15
+        Anchors = [akLeft, akRight, akBottom]
+        AutoSize = False
+        Caption = 
+          ' Warning: delete files in the src folder for changes to take eff' +
+          'ect.'
+        Color = 52479
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentColor = False
+        ParentFont = False
+      end
       object cbParserValue: TComboBox
         Left = 0
         Top = 16
@@ -137,8 +156,14 @@ object EditProjectMainForm: TEditProjectMainForm
         Left = 0
         Top = 40
         Width = 401
-        Height = 345
+        Height = 329
         Anchors = [akLeft, akTop, akRight, akBottom]
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Lucida Console'
+        Font.Style = []
+        ParentFont = False
         ScrollBars = ssBoth
         TabOrder = 1
         WantTabs = True

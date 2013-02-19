@@ -209,7 +209,9 @@ begin
       ParserValueElement[pv]) as IXMLDOMElement;
     if x<>nil then
      begin
-      s:=x.text;
+      s:=StringReplace(StringReplace(x.text,
+        '$v',FParserValues[pv].Code,[rfReplaceAll]),
+        '$d',FParserValues[pv].Code,[rfReplaceAll]);
       l:=Length(s);
       j:=0;
       for i:=1 to l-1 do if (s[i]=#13) and (s[i+1]=#10) then inc(j);
@@ -854,7 +856,8 @@ begin
         while (j<=l) and (s[j]<>')') do inc(j);
         try
           map.Load(ChangeFileExt(FSrcFolder+Copy(s,1,i-2),LinesMapExtension));
-          s:=Copy(s,1,i-2)+'['+map.GetXxmLines(StrToInt(Copy(s,i,j-i)))+']'+Copy(s,j+1,Length(s)-j);
+          s:=Copy(s,1,i-2)+'['+map.GetXxmLines(StrToInt(Copy(s,i,j-i)))+
+            ']'+Copy(s,j+1,Length(s)-j);
         except
           //silent
         end;
