@@ -4,6 +4,7 @@ v1.1.8.?
 - set project default parser values from Web.xxmp
 - xxmHttp: replaced first request parsing ReceiveLn with ReceiveBuf
 - added mongodb demo
+- xxmConv: extra proto template fields (used by 'skip the handler' builds)
 
 v1.1.7.292
 - xxmString: TStringContext.SaveToFile respects AutoEncoding parameter

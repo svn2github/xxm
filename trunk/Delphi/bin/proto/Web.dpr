@@ -24,5 +24,6 @@ uses
 [[ProjectHeader]]
 exports
 	XxmProjectLoad;
+begin
 [[ProjectBody]]
 end.
