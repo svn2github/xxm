@@ -214,7 +214,7 @@ end;
 procedure TXxmIsapiContext.Execute;
 var
   x,y:AnsiString;
-  i,j:integer;
+  i:integer;
 begin
   //ServerFunction(HSE_REQ_IO_COMPLETION,@ContextIOCompletion,nil,PDWORD(Self));
   try
