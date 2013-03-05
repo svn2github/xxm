@@ -246,11 +246,6 @@ begin
       FRedirectPrefix:=FRedirectPrefix+'/'+FProjectName;
     FPageClass:='['+FProjectName+']';
 
-    //fragment name
-    j:=i;
-    while (j<=Length(x)) and not(char(x[j]) in ['?','&','$','#']) do inc(j);
-    FFragmentName:=Copy(x,i,j-i);
-
     BuildPage;
 
   except
