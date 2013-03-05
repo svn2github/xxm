@@ -109,14 +109,39 @@ begin
   Result:=FProject;
 end;
 
+{$IFDEF HSYS1}{$DEFINE IgnoreProjectNameInURL}{$ENDIF}
+{$IFDEF HSYS2}{$DEFINE IgnoreProjectNameInURL}{$ENDIF}
+
 function TXxmProjectCacheXml.ProjectFromURI(Context: IXxmContext;
   const URI: AnsiString; var i: integer; var ProjectName,
   FragmentName: WideString): boolean;
 var
   j,l:integer;
+  {$IFDEF IgnoreProjectNameInURL}
+  x:AnsiString;
+  {$ENDIF}
 begin
   l:=Length(URI);
-  Result:=false;
+  {$IFDEF IgnoreProjectNameInURL}
+  if true then //hsys loads 'http://+:80/Something/'
+   begin
+    while (i<=l) and not(char(URI[i]) in ['/','?','&','$','#']) do inc(i);
+    ProjectName:=Copy(URI,2,i-2);
+    if ProjectName='' then
+     begin
+      if (i<=l) and (URI[i]='/') then x:='' else x:='/';
+      Context.Redirect('/'+XxmProjectName+x+Copy(URI,i,l-i+1),true);
+     end;
+    if (i>l) and (l>1) then Context.Redirect(URI+'/',true) else
+      if (URI[i]='/') then inc(i);
+    Result:=true;
+   end
+  else
+  {$ENDIF}
+   begin
+    ProjectName:=XxmProjectName;
+    Result:=false;
+   end;
   j:=i;
   while (i<=l) and not(char(URI[i]) in ['?','&','$','#']) do inc(i);
   FragmentName:=Copy(URI,j,i-j);
