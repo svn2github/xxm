@@ -100,7 +100,8 @@ type
     function GetReferrer: nsIURI; safecall;
     procedure SetReferrer(aReferrer: nsIURI); safecall;
     property Referrer: nsIURI read GetReferrer write SetReferrer;
-    function GetRequestHeader(const aHeader: nsACString): nsACString; safecall;
+    function nsIHttpChannelInternal.getRequestHeader=GetRequestHeaderInt;
+    function GetRequestHeaderInt(const aHeader: nsACString): nsACString; safecall;
     procedure SetRequestHeader(const aHeader: nsACString; const aValue: nsACString; aMerge: PRBool); safecall;
     procedure VisitRequestHeaders(aVisitor: nsIHttpHeaderVisitor); safecall;
     function GetAllowPipelining: PRBool; safecall;
@@ -178,7 +179,7 @@ type
     //other TXxmGeneralContext abstract methods
     function GetProjectEntry:TXxmProjectEntry; override;
     procedure SendHeader; override;
-    procedure AddResponseHeader(Name, Value: WideString); override;
+    procedure AddResponseHeader(const Name, Value: WideString); override;
 
     //IxxmHttpHeaders
     function GetRequestHeaders:IxxmDictionaryEx;
@@ -658,8 +659,7 @@ begin
   FRequestHeaders['Referer']:=UTF8Decode(x.ToString);
 end;
 
-function TxxmChannel.GetRequestHeader(
-  const aHeader: nsACString): nsACString;
+function TxxmChannel.GetRequestHeaderInt(const aHeader: nsACString): nsACString;
 begin
   SetCString(Result,FRequestHeaders[GetCString(aHeader)]);
 end;
@@ -696,7 +696,7 @@ begin
   FResponseHeaders[GetCString(header)]:=GetCString(value);
 end;
 
-procedure TxxmChannel.AddResponseHeader(Name, Value: WideString);
+procedure TxxmChannel.AddResponseHeader(const Name, Value: WideString);
 begin
   FResponseHeaders[Name]:=Value;
 end;

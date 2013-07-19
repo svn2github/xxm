@@ -26,7 +26,7 @@ type
     FAutoEncoding: TXxmAutoEncoding;
     FPostData: TStream;
     FPostTempFile: AnsiString;
-    StatusSet, SettingCookie: boolean;
+    StatusSet, SettingCookie, BuildDone: boolean;
     FBufferSize: integer;
 
     { IXxmContext }
