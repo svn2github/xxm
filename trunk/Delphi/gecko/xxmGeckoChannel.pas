@@ -100,7 +100,7 @@ type
     function GetReferrer: nsIURI; safecall;
     procedure SetReferrer(aReferrer: nsIURI); safecall;
     property Referrer: nsIURI read GetReferrer write SetReferrer;
-    function nsIHttpChannelInternal.getRequestHeader=GetRequestHeaderInt;
+    function nsIHttpChannel.getRequestHeader=GetRequestHeaderInt;
     function GetRequestHeaderInt(const aHeader: nsACString): nsACString; safecall;
     procedure SetRequestHeader(const aHeader: nsACString; const aValue: nsACString; aMerge: PRBool); safecall;
     procedure VisitRequestHeaders(aVisitor: nsIHttpHeaderVisitor); safecall;
@@ -472,7 +472,7 @@ end;
 
 function TxxmChannel.GetProjectEntry:TXxmProjectEntry;
 begin
-  if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCache.Create;
+  if XxmProjectCache=nil then XxmProjectCache:=TXxmProjectCacheLocal.Create;
   Result:=XxmProjectCache.GetProject(FProjectName);
 end;
 
