@@ -45,7 +45,8 @@ type
     FData:TMemoryStream;
     FLock:TRTLCriticalSection;
     FRedirectChannel:nsIChannel;//see Redirect
-    FChannelIsForDownload,FForceAllowThirdPartyCookie,FAllowSpdy:boolean;
+    FChannelIsForDownload,FForceAllowThirdPartyCookie,
+    FAllowSpdy,FLoadAsBlocking,FLoadUnblocked:boolean;
     procedure CheckSuspend;
     procedure Lock;
     procedure Unlock;
@@ -89,10 +90,12 @@ type
     procedure GetContentCharset(aContentCharset: nsACString); safecall;
     procedure SetContentCharset(const aContentCharset: nsACString);
       safecall;
-    function GetContentLength: Integer; safecall;
-    procedure SetContentLength(aContentLength: Integer); safecall;
+    function GetContentLength: int64; safecall;
+    procedure SetContentLength(aContentLength: int64); safecall;
     function GetContentDisposition: PRUint32; safecall;
+    procedure SetContentDisposition(aContentDisposition: PRUint32); safecall;
     procedure GetContentDispositionFileName(aContentDispositionFileName: nsACString); safecall;
+    procedure SetContentDispositionFileName(const aContentDispositionFileName: nsACString); safecall;
     procedure GetContentDispositionHeader(aContentDispositionHeader: nsACString); safecall;
     //nsIHttpChannel
     procedure GetRequestMethod(aRequestMethod: nsACString); safecall;
@@ -120,6 +123,7 @@ type
     procedure VisitResponseHeaders(aVisitor: nsIHttpHeaderVisitor); safecall;
     function IsNoStoreResponse: PRBool; safecall;
     function IsNoCacheResponse: PRBool; safecall;
+    procedure RedirectTo(aNewURI: nsIURI); safecall;
     //nsIHttpChannelInternal
     function GetDocumentURI: nsIURI; safecall;
     procedure SetDocumentURI(aDocumentURI: nsIURI); safecall;
@@ -141,14 +145,19 @@ type
     procedure HTTPUpgrade(aProtocolName: nsACString; aListener: nsISupports); safecall; //nsIHttpUpgradeListener
     function GetAllowSpdy: PRBool; safecall;
     procedure SetAllowSpdy(aAllowSpdy: PRBool); safecall;
+    function GetLoadAsBlocking: PRBool; safecall;
+    procedure SetLoadAsBlocking(aLoadAsBlocking: PRBool); safecall;
+    function GetLoadUnblocked: PRBool; safecall;
+    procedure SetLoadUnblocked(aLoadUnblocked: PRBool); safecall;
     //nsIUploadChannel
-    procedure SetUploadStream(aStream: nsIInputStream; const aContentType: nsACString; aContentLength: PRInt32); safecall;
-    function GetUploadStream(): nsIInputStream; safecall;
+    procedure SetUploadStream(aStream: nsIInputStream;
+      const aContentType: nsACString; aContentLength: PRInt64); safecall;
+    function GetUploadStream: nsIInputStream; safecall;
     //TODO: nsIUploadChannel2
     //nsIAsyncVerifyRedirectCallback
     procedure OnRedirectVerifyCallback(aResult: nsresult); safecall;
     //nsIInputStream (attention: interface on channel object for convenience)
-    function Available: Cardinal; safecall;
+    function Available: int64; safecall;
     procedure Close; safecall;
     function IsNonBlocking: LongBool; safecall;
     function Read(aBuf: PAnsiChar; aCount: Cardinal): Cardinal; safecall;
@@ -171,15 +180,13 @@ type
     function Connected: Boolean; override;
     procedure Redirect(RedirectURL: WideString; Relative:boolean); override;
     function GetCookie(Name: WideString): WideString; override;
-    procedure SetCookie(Name: WideString; Value: WideString); overload; override;
-    procedure SetCookie(Name,Value:WideString; KeepSeconds:cardinal;
-      Comment,Domain,Path:WideString; Secure,HttpOnly:boolean); overload; override;
     procedure Flush; override;
 
     //other TXxmGeneralContext abstract methods
     function GetProjectEntry:TXxmProjectEntry; override;
     procedure SendHeader; override;
     procedure AddResponseHeader(const Name, Value: WideString); override;
+    function GetRequestHeader(const Name: WideString): WideString; override;
 
     //IxxmHttpHeaders
     function GetRequestHeaders:IxxmDictionaryEx;
@@ -195,10 +202,13 @@ type
   TXxmGeckoLoader=class(TThread)
   private
     FInUse:boolean;
+    FNextJobEvent:THandle;
   protected
     procedure Execute; override;
   public
     constructor Create;
+    destructor Destroy; override;
+    procedure SignalNextJob;
     property InUse:boolean read FInUse;
   end;
 
@@ -300,7 +310,7 @@ var
 begin
   x:=NewUTF8String;
   aURI.GetSpec(x.AUTF8String);
-  inherited Create(UTF8Decode(x.ToString));
+  inherited Create(UTF8ToWideString(x.ToString));
   FOwner:=nil;
   FReports:=nil;
   FLoadGroup:=nil;
@@ -337,6 +347,8 @@ begin
   FChannelIsForDownload:=false;
   FForceAllowThirdPartyCookie:=false;//?
   FAllowSpdy:=true;//sure, don't see why not
+  FLoadAsBlocking:=false;//???
+  FLoadUnblocked:=true;
 end;
 
 destructor TxxmChannel.Destroy;
@@ -420,7 +432,9 @@ begin
 
     //activate
     Resume;
-    BuildPage;
+    //BuildPage;
+
+    SendHTML('<h1>test</h1>');
 
   except
     on EXxmPageRedirected do
@@ -557,14 +571,14 @@ begin
   FResponseHeaders['Content-Charset']:=GetCString(aContentCharset);
 end;
 
-function TxxmChannel.GetContentLength: Integer;
+function TxxmChannel.GetContentLength: int64;
 begin
   //TODO:
   //check FComplete?
   Result:=FTotalSize;
 end;
 
-procedure TxxmChannel.SetContentLength(aContentLength: Integer);
+procedure TxxmChannel.SetContentLength(aContentLength: int64);
 begin
   raise EInvalidOperation.Create('Not implemented');
 end;
@@ -656,7 +670,7 @@ begin
   FReferer:=aReferrer;
   x:=NewUTF8String;
   aReferrer.GetSpec(x.AUTF8String);
-  FRequestHeaders['Referer']:=UTF8Decode(x.ToString);
+  FRequestHeaders['Referer']:=UTF8ToWideString(x.ToString);
 end;
 
 function TxxmChannel.GetRequestHeaderInt(const aHeader: nsACString): nsACString;
@@ -692,13 +706,27 @@ end;
 procedure TxxmChannel.SetResponseHeader(const header, value: nsACString;
   merge: PRBool);
 begin
-  if not(merge) then raise Exception.Create('set header without merge not supported');
-  FResponseHeaders[GetCString(header)]:=GetCString(value);
+  if merge then
+    FResponseHeaders[GetCString(header)]:=GetCString(value)
+  else
+    raise Exception.Create('set header without merge not supported');
+end;
+
+function TxxmChannel.GetRequestHeader(const Name: WideString): WideString;
+begin
+  //inherited;
+  Result:=FRequestHeaders[Name];
 end;
 
 procedure TxxmChannel.AddResponseHeader(const Name, Value: WideString);
 begin
-  FResponseHeaders[Name]:=Value;
+  if SettingCookie then
+   begin
+    SettingCookie:=false;
+    FResponseHeaders.Add(Name,Value);
+   end
+  else
+    FResponseHeaders[Name]:=Value;
 end;
 
 function TxxmChannel.IsPending: PRBool;
@@ -989,43 +1017,6 @@ begin
    end;
 end;
 
-procedure TxxmChannel.SetCookie(Name, Value: WideString);
-begin
-  CheckHeaderNotSent;
-  //check name?
-  //TODO: "quoted string"?
-  FResponseHeaders['Cache-Control']:='no-cache="set-cookie"';
-  FResponseHeaders.Add('Set-Cookie',Name+'="'+Value+'"');
-end;
-
-procedure TxxmChannel.SetCookie(Name, Value: WideString;
-  KeepSeconds: cardinal; Comment, Domain, Path: WideString; Secure,
-  HttpOnly: boolean);
-var
-  x:WideString;
-begin
-  CheckHeaderNotSent;
-  //check name?
-  //TODO: "quoted string"?
-  FResponseHeaders['Cache-Control']:='no-cache="set-cookie"';
-  x:=Name+'="'+Value+'"';
-  //'; Version=1';
-  if Comment<>'' then
-    x:=x+'; Comment="'+Comment+'"';
-  if Domain<>'' then
-    x:=x+'; Domain="'+Domain+'"';
-  if Path<>'' then
-    x:=x+'; Path="'+Path+'"';
-  x:=x+'; Max-Age='+IntToStr(KeepSeconds)+
-    '; Expires="'+RFC822DateGMT(Now+KeepSeconds/86400)+'"';
-  if Secure then
-    x:=x+'; Secure'+#13#10;
-  if HttpOnly then
-    x:=x+'; HttpOnly'+#13#10;
-  FResponseHeaders.Add('Set-Cookie',x);
-  //TODO: Set-Cookie2
-end;
-
 {
 procedure TxxmChannel.nsGetInterface(const uuid: TGUID; out _result);
 begin
@@ -1110,7 +1101,7 @@ begin
   FReportSize:=FReportSize+Result;
 end;
 
-function TxxmChannel.Available: Cardinal;
+function TxxmChannel.Available: int64;
 begin
   Result:=FReportSize;
 end;
@@ -1190,11 +1181,12 @@ end;
 
 function TxxmChannel.GetUploadStream: nsIInputStream;
 begin
-  Result:=(FPostData as TxxmGeckoUploadStream).InputStream;
+  if FPostData=nil then Result:=nil else
+    Result:=(FPostData as TxxmGeckoUploadStream).InputStream;
 end;
 
 procedure TxxmChannel.SetUploadStream(aStream: nsIInputStream;
-  const aContentType: nsACString; aContentLength: PRInt32);
+  const aContentType: nsACString; aContentLength: PRInt64);
 var
   ct:AnsiString;
 begin
@@ -1327,6 +1319,18 @@ begin
     Result:=DISPOSITION_ATTACHMENT;
 end;
 
+procedure TxxmChannel.SetContentDisposition(aContentDisposition: PRUint32);
+begin
+  case aContentDisposition of
+    DISPOSITION_INLINE:
+      FResponseHeaders['Content-Disposition']:='';
+    DISPOSITION_ATTACHMENT:
+      FResponseHeaders.SetComplex('Content-Disposition','attach');
+    else
+      raise EInvalidOperation.Create('Not implemented');
+  end;
+end;
+
 procedure TxxmChannel.GetContentDispositionFileName(
   aContentDispositionFileName: nsACString);
 var
@@ -1334,6 +1338,15 @@ var
 begin
   FResponseHeaders.Complex('Content-Disposition',x);//returns 'attachment'?
   SetCString(aContentDispositionFileName,x['filename']);
+end;
+
+procedure TxxmChannel.SetContentDispositionFileName(
+  const aContentDispositionFileName: nsACString);
+var
+  x:IxxmDictionary;
+begin
+  FResponseHeaders.Complex('Content-Disposition',x);//returns 'attachment'?
+  x['filename']:=GetCString(aContentDispositionFileName);
 end;
 
 procedure TxxmChannel.GetContentDispositionHeader(
@@ -1352,12 +1365,51 @@ begin
   FAllowSpdy:=aAllowSpdy;
 end;
 
+function TxxmChannel.GetLoadAsBlocking: PRBool;
+begin
+  Result:=FLoadAsBlocking;
+end;
+
+procedure TxxmChannel.SetLoadAsBlocking(aLoadAsBlocking: PRBool);
+begin
+  FLoadAsBlocking:=aLoadAsBlocking;//??
+end;
+
+function TxxmChannel.GetLoadUnblocked: PRBool;
+begin
+  Result:=FLoadUnblocked;
+end;
+
+procedure TxxmChannel.SetLoadUnblocked(aLoadUnblocked: PRBool);
+begin
+  FLoadUnblocked:=aLoadUnblocked;//??
+end;
+
+procedure TxxmChannel.RedirectTo(aNewURI: nsIURI);
+var
+  x,y:IInterfacedUTF8String;
+begin
+  x:=NewUTF8String;
+  y:=NewUTF8String;;
+  aNewURI.GetSpec(x.AUTF8String);
+  aNewURI.GetScheme(y.AUTF8String);
+  Redirect(UTF8ToWideString(x.ToString),y.ToString<>'');//?
+end;
+
 { TXxmGeckoLoader }
 
 constructor TXxmGeckoLoader.Create;
 begin
   inherited Create(false);
   //FInUse:=false;
+  FNextJobEvent:=CreateEventA(nil,true,false,
+    PAnsiChar('xxmGecko:NextJob:'+IntToHex(GetCurrentThreadId,8)));
+end;
+
+destructor TXxmGeckoLoader.Destroy;
+begin
+  CloseHandle(FNextJobEvent);
+  inherited;
 end;
 
 procedure TXxmGeckoLoader.Execute;
@@ -1365,7 +1417,7 @@ var
   Channel:TxxmChannel;
 begin
   CoInitialize(nil);
-  SetErrorMode(SEM_FAILCRITICALERRORS);
+  //SetErrorMode(SEM_FAILCRITICALERRORS);
   while not(Terminated) do
    begin
     Channel:=GeckoLoaderPool.Unqueue;
@@ -1373,7 +1425,8 @@ begin
      begin
       FInUse:=false;//used by PageLoaderPool.Queue
       SetThreadName('(xxmPageLoader)');
-      Suspend;
+      ResetEvent(FNextJobEvent);
+      WaitForSingleObject(FNextJobEvent,INFINITE);
       FInUse:=true;
      end
     else
@@ -1385,6 +1438,12 @@ begin
      end;
    end;
   //CoUninitialize;
+end;
+
+procedure TXxmGeckoLoader.SignalNextJob;
+begin
+  //assert thread waiting on FNextJobEvent
+  SetEvent(FNextJobEvent);
 end;
 
 { TXxmGeckoLoaderPool }
@@ -1429,7 +1488,7 @@ begin
          begin
           FLoaders[FLoadersSize].FreeOnTerminate:=true;
           FLoaders[FLoadersSize].Terminate;
-          FLoaders[FLoadersSize].Resume;
+          FLoaders[FLoadersSize].SignalNextJob;
           FLoaders[FLoadersSize]:=nil;
          end;
        end;
@@ -1473,7 +1532,7 @@ begin
     if FLoaders[i]=nil then
       FLoaders[i]:=TxxmGeckoLoader.Create //start thread
     else
-      FLoaders[i].Resume; //resume on waiting unqueues
+      FLoaders[i].SignalNextJob; //resume on waiting unqueues
     //TODO: expire unused threads on low load
    end;
 end;
@@ -1588,7 +1647,7 @@ begin
   FCount:=Count;
 end;
 
-const StateNAme:array[TxxmChannelState] of string=('Sending','Closed','Redirect');
+const StateName:array[TxxmChannelState] of string=('Sending','Closed','Redirect');
 
 procedure TxxmChannelReports.SetState(const Value: TxxmChannelState);
 begin
