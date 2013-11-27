@@ -4,7 +4,7 @@ interface
 
 uses xxm, xxmContext,
   Windows, Classes, SysUtils, ActiveX, xxmHeaders, xxmParUtils,
-  xxmPReg, xxmPRegLocal, xxmParams, xxmGeckoInterfaces, xxmGeckoStreams;
+  xxmPReg, xxmPRegLocal, xxmParams;
 
 type
   TxxmChannel=class(TXxmGeneralContext,
@@ -12,7 +12,6 @@ type
     IxxmHttpHeaders)
   private
     FComplete,FGotSessionID:boolean;
-    FStatus:integer;
     FPipePrefix,FVerb,FQueryString:AnsiString;
     FPipeIn,FPipeOut,FPipeCmd:THandle;
     FFlagUp,FFlagDown:THandle;
@@ -215,7 +214,6 @@ begin
   (FResponseHeaders as IUnknown)._AddRef;
   FCookieParsed:=false;
   FComplete:=false;
-  FStatus:=NS_OK;
   FResponseHeaders['Content-Type']:='text/html';//default (setting?)
   FResponseHeaders['Content-Charset']:='utf-8';//used by GetContentCharset/SetContentCharset
   FQueryString:='';//parsed from URL

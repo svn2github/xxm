@@ -155,7 +155,6 @@ console.log(this.name+" redirectTo "+uri.spec);
 		this.contentLength=x.headers["content-length"];
 		this.contentType=x.headers["content-type"];//TODO: split "; charset="
 		this.contentCharset=x.headers["content-charset"];
-console.log(x.toSource());		
 		this._listener.onStartRequest(this,this._context);
 	},
 	xxm_data:function(x){
