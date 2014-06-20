@@ -43,6 +43,7 @@ begin
   inherited;
   //TODO: link session to request
   Result:=XxmFragmentRegistry.GetFragment(Self,Address,'');
+  //TODO: if Context.ContextString(csVerb)='OPTION' then...
 end;
 
 function TXxm[[ProjectName]].LoadFragment(Context: IXxmContext; Address, RelativeTo: WideString): IXxmFragment;
