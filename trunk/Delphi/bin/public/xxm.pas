@@ -387,10 +387,11 @@ function URLEncode(const KeyValuePairs:array of OleVariant):AnsiString; overload
 var
   i,l:integer;
 begin
-  i:=0;
+  Result:='';
   l:=Length(KeyValuePairs);
-  if l=0 then Result:='' else
+  if l<>0 then
    begin
+    i:=0;
     while i<l do
      begin
       Result:=Result+'&'+URLEncode(VarToStr(KeyValuePairs[i]))+'=';
