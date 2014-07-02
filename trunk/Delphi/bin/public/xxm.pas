@@ -264,7 +264,7 @@ begin
   Result:=Data;
   di:=1;
   dl:=Length(Data);
-  while (di<=dl) and not(char(Data[di]) in ['&','<','"','>',#13,#10]) do inc(di);
+  while (di<=dl) and not(AnsiChar(Data[di]) in ['&','<','"','>',#13,#10]) do inc(di);
   if di<=dl then
    begin
     ri:=di;
@@ -394,17 +394,17 @@ begin
     i:=0;
     while i<l do
      begin
-      Result:=Result+'&'+URLEncode(VarToStr(KeyValuePairs[i]))+'=';
+      Result:=Result+'&'+URLEncode(KeyValuePairs[i])+'=';
       inc(i);
       if i<l then
         if VarIsNumeric(KeyValuePairs[i]) then
-          Result:=Result+VarToStr(KeyValuePairs[i])
+          Result:=Result+AnsiString(VarToStr(KeyValuePairs[i]))
         else
-          Result:=Result+URLEncode(VarToStr(KeyValuePairs[i]));
+          Result:=Result+URLEncode(KeyValuePairs[i]);
       inc(i);
      end;
     if i<l then
-      Result:=Result+'&'+URLEncode(VarToStr(KeyValuePairs[i]))+'=';
+      Result:=Result+'&'+URLEncode(KeyValuePairs[i])+'=';
     Result[1]:='?';
    end;
 end;
