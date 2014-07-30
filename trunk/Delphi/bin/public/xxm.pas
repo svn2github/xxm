@@ -416,7 +416,7 @@ begin
   s:=XxmRevision;
   Result.Major:=1;
   Result.Minor:=2;
-  Result.Release:=0;
+  Result.Release:=1;
   Result.Build:=StrToInt(Copy(s,7,Length(s)-8));
 end;
 

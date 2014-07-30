@@ -1,15 +1,15 @@
 <ProjectRegistry>
 	<Project Name="xxm" Alias="proto"/>
-	<Project Name="proto">
-		<ModulePath>C:\data\2011\xxm\bin\xxmProto.xxl</ModulePath>
-	</Project>
-	<Project Name="demo4"><ModulePath>C:\Data\2011\xxm\demo2\04 Upload\demo.xxl</ModulePath></Project>
-	<Project Name="demo5"><ModulePath>C:\Data\2011\xxm\demo2\05 Image\demo.xxl</ModulePath></Project>
-	<Project Name="demo" Signature="01C7C726FF61AEE8_645">
-		<!--<ModulePath>C:\data\2011\xxm\demo\demo.xxl</ModulePath>-->
-		<ModulePath>C:\Data\2011\xxm\demo2\demo\demo.xxl</ModulePath>
-	</Project>
-	<Project Name="tx"><ModulePath>C:\Data\2011\xxm\tx\txSQLite\tx.xxl</ModulePath></Project>
-	<Project Name="wordpress"><ModulePath>C:\Data\2011\xxm\demo2\wordpress\wordpress.xxl</ModulePath></Project>
-	<Project Name="tcgi" Alias="proto"></Project>
+	<Project Name="proto"><ModulePath>D:\Data\xxm\Delphi\bin\xxmProto.xxl</ModulePath></Project>
+	<Project Name="demo" Signature="01CF6A094D321327_599"><ModulePath>D:\Data\xxm\Delphi\demo\demo.xxl</ModulePath></Project>
+	<Project Name="demoADO" LoadCopy="0" Signature="01CF5F2BBE888372_692"><ModulePath>D:\Data\xxm\Delphi\demo2\03 Data ADO\demo.xxl</ModulePath></Project>
+	<Project Name="tx" Signature="01CF87F8A3DD966E_17186"><ModulePath>D:\Data\xxm\Delphi\tx\txSQLite\tx.xxl</ModulePath></Project>
+	<Project Name="btcmud" Signature="01CEA9A8BA38D488_1046"><ModulePath>D:\Data\2013\btcmud\btcmud.xxl</ModulePath></Project>
+	<Project Name="vdrg" LoadCopy="0" Signature="01CF22BB5F476A2D_2131"><ModulePath>D:\Data\2014\vdrg2014\vdrg.xxl</ModulePath></Project>
+	<Project Name="vdrg2013" LoadCopy="0" Signature="01CF50A8597C9717_1500"><ModulePath>D:\Data\2012\vdrg2013\vdrg.xxl</ModulePath></Project>
+	<Project Name="primes" LoadCopy="0" Signature="01CCCB252280DA00_444"><ModulePath>D:\Data\2014\primes\primesWeb\primes.xxl</ModulePath></Project>
+	<Project Name="ImgSrv" Signature="01CEBAE88C88AA85_367"><ModulePath>D:\Data\2013\ImgSrv\xxm\ImgSrv.xxl</ModulePath></Project>
+	<Project Name="statblog" Signature="01CF04C9E973F57A_1730"><ModulePath>D:\Data\2012\prutsmama\statblog.xxl</ModulePath></Project>
+	<Project Name="ws" Signature="01CF2DC4C96DCD47_510"><ModulePath>D:\Data\2014\ws\ws.xxl</ModulePath></Project>
+	<Project Name="sd1" Signature="01CF7F6199F42DD7_376"><ModulePath>D:\Data\2014\sd1\sd1.xxl</ModulePath></Project>
 </ProjectRegistry>
