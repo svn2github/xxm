@@ -5,8 +5,8 @@ interface
 uses SysUtils, Classes, ActiveX;
 
 const
-  //$Date: 2013-02-12 20:16:55 +0100 (di, 12 feb 2013) $
-  XxmRevision='$Rev: 262 $';
+  //$Date: 2014-07-31 00:04:37 +0200 (do, 31 jul 2014) $
+  XxmRevision='$Rev: 336 $';
 
 type
   IXxmContext=interface;//forward
@@ -230,8 +230,9 @@ type
 function XxmVersion:TXxmVersion;
 function HTMLEncode(const Data:WideString):WideString; overload;
 function HTMLEncode(const Data:OleVariant):WideString; overload;
-function URLEncode(const Data:OleVariant):AnsiString;
+function URLEncode(const Data:OleVariant):AnsiString; overload;
 function URLDecode(const Data:AnsiString):WideString;
+function URLEncode(const KeyValuePairs:array of OleVariant):AnsiString; overload;
 
 implementation
 
@@ -263,7 +264,7 @@ begin
   Result:=Data;
   di:=1;
   dl:=Length(Data);
-  while (di<=dl) and not(char(Data[di]) in ['&','<','"','>',#13,#10]) do inc(di);
+  while (di<=dl) and not(AnsiChar(Data[di]) in ['&','<','"','>',#13,#10]) do inc(di);
   if di<=dl then
    begin
     ri:=di;
@@ -382,14 +383,40 @@ begin
   if (q>1) and (Result='') then Result:=WideString(t);
 end;
 
+function URLEncode(const KeyValuePairs:array of OleVariant):AnsiString; overload;
+var
+  i,l:integer;
+begin
+  Result:='';
+  l:=Length(KeyValuePairs);
+  if l<>0 then
+   begin
+    i:=0;
+    while i<l do
+     begin
+      Result:=Result+'&'+URLEncode(KeyValuePairs[i])+'=';
+      inc(i);
+      if i<l then
+        if VarIsNumeric(KeyValuePairs[i]) then
+          Result:=Result+AnsiString(VarToStr(KeyValuePairs[i]))
+        else
+          Result:=Result+URLEncode(KeyValuePairs[i]);
+      inc(i);
+     end;
+    if i<l then
+      Result:=Result+'&'+URLEncode(KeyValuePairs[i])+'=';
+    Result[1]:='?';
+   end;
+end;
+
 function XxmVersion: TXxmVersion;
 var
   s:string;
 begin
   s:=XxmRevision;
   Result.Major:=1;
-  Result.Minor:=1;
-  Result.Release:=0;
+  Result.Minor:=2;
+  Result.Release:=1;
   Result.Build:=StrToInt(Copy(s,7,Length(s)-8));
 end;
 
