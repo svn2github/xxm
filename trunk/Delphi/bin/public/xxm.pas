@@ -10,7 +10,7 @@ const
 
 type
   IXxmContext=interface;//forward
-  IXxmFragment=interface; //forward
+  IXxmFragment=interface;//forward
 
   IXxmProject=interface
     ['{78786D00-0000-0002-C000-000000000002}']
@@ -416,7 +416,7 @@ begin
   s:=XxmRevision;
   Result.Major:=1;
   Result.Minor:=2;
-  Result.Release:=1;
+  Result.Release:=2;
   Result.Build:=StrToInt(Copy(s,7,Length(s)-8));
 end;
 
