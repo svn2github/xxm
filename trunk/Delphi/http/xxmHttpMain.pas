@@ -422,7 +422,7 @@ begin
      begin
       si:=StrToInt(y);
       if si<PostDataThreshold then
-        s:=TMemoryStream.Create
+        s:=THeapStream.Create
       else
        begin
         SetLength(FPostTempFile,$400);
@@ -673,7 +673,7 @@ begin
     try
       FServer.WaitForConnection;
       if not Terminated then
-        KeptConnections.Queue( //PageLoaderPool.Queue(
+        PageLoaderPool.Queue( //KeptConnections.Queue(?
           TXxmHttpContext.Create(
             FServer.Accept));
     except

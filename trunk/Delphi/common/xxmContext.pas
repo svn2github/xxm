@@ -738,6 +738,7 @@ var
   l:integer;
 begin
   CheckSendStart(true);
+  Flush;
   repeat
     l:=dSize;
     OleCheck(s.Read(@d[0],dSize,@l));
@@ -1166,7 +1167,7 @@ begin
       while (i<FBufferSize) and (FBuffer[i]=nil) do inc(i);
       if i=FBufferSize then
        begin
-        x:=TMemoryStream.Create;//TODO: tmp file when large buffer
+        x:=THeapStream.Create;//TODO: tmp file when large buffer
        end
       else
        begin
