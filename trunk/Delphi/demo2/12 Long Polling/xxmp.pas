@@ -1,11 +1,21 @@
 unit xxmp;
 
+{
+  xxm Project Unit
+  demo: 12 Long Polling
+
+This file was first generated using the xxmp.pas template, but then modified
+to add the IXxmProjectEvents2 implementation to the TXxmdemo object.
+}
+
 interface
 
 uses xxm;
 
 type
-  TXxmdemo=class(TXxmProject)
+  TXxmdemo=class(TXxmProject, IXxmProjectEvents2)
+  private
+    function CheckEvent(const EventKey: WideString; var CheckIntervalMS: cardinal): boolean;
   public
     function LoadPage(Context: IXxmContext; Address: WideString): IXxmFragment; override;
     function LoadFragment(Context: IXxmContext; Address, RelativeTo: WideString): IXxmFragment; override;
@@ -16,7 +26,7 @@ function XxmProjectLoad(AProjectName:WideString): IXxmProject; stdcall;
 
 implementation
 
-uses xxmFReg, xxmHeaders;
+uses SysUtils, xxmFReg;
 
 function XxmProjectLoad(AProjectName:WideString): IXxmProject;
 begin
@@ -29,21 +39,6 @@ function TXxmdemo.LoadPage(Context: IXxmContext; Address: WideString): IXxmFragm
 begin
   inherited;
   //TODO: link session to request
-  
-  {// to require authentication on the entire site, 
-   // create a file "AuthReqMsg.xxm" that contains "<h1>Authentication Required</h1>"
-   // and use this code:
-  
-  if Context.ContextString(csAuthUser)='' then
-   begin
-    Context.SetStatus(401,'Authentication Required');
-	(Context as IxxmHttpHeaders).ResponseHeaders['WWW-Authenticate']:='Basic realm="demo"';
-	Result:=XxmFragmentRegistry.GetFragment(Self,'AuthReqMsg.xxm','');
-   end
-  else
-  
-  }
-  
   Result:=XxmFragmentRegistry.GetFragment(Self,Address,'');
   //TODO: if Context.ContextString(csVerb)='OPTION' then...
 end;
@@ -56,7 +51,28 @@ end;
 procedure TXxmdemo.UnloadFragment(Fragment: IXxmFragment);
 begin
   inherited;
-  //
+  //TODO: set cache TTL, decrease ref count
+  //Fragment.Free;
+end;
+
+var
+  CheckedLast:cardinal;
+
+function TXxmdemo.CheckEvent(const EventKey: WideString; var CheckIntervalMS: cardinal): boolean;
+var
+  th,tm,ts,tz:word;
+  i,j:cardinal;
+begin
+  DecodeTime(Now,th,tm,ts,tz);
+  i:=th+tm+ts;
+  if CheckedLast=i then Result:=false else
+   begin
+    CheckedLast:=i;
+    j:=2;
+    //TODO: while (j<=isqtr(j))
+    while (j<i) and ((i mod j)<>0) do inc(j);
+    Result:=j=i;
+   end;
 end;
 
 initialization
