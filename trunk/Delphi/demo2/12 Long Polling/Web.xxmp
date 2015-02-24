@@ -6,8 +6,5 @@
 		<File ID="default_xxm" UnitName="default_xxm1" UnitPath=""><Path>Default.xxm</Path></File>
 		<File ID="drop_xxmi" UnitName="drop_xxmi1" UnitPath=""><Path>Drop.xxmi</Path></File>
 		<File ID="next_xxmi" UnitName="next_xxmi1" UnitPath=""><Path>Next.xxmi</Path></File>
-		<File ID="h_xxm" UnitName="h_xxm1" UnitPath=""><Path>H.xxm</Path></File>
-		<File ID="t_xxm" UnitName="t_xxm1" UnitPath=""><Path>t.xxm</Path></File>
 	</Files>
-	<LastModified>2015-02-16T21:58:33</LastModified>
 </XxmWebProject>
