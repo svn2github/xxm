@@ -359,6 +359,7 @@ begin
         ForceStatus(304,'Not Modified');
         //AddResponseHeader('Content-Length',?
         SendHeader;
+        CloseHandle(fh);
        end
       else
        begin
@@ -773,7 +774,15 @@ end;
 
 procedure TXxmGeneralContext.SendHTML(Data: OleVariant);
 begin
-  SendStr(VarToWideStrX(Data));
+  if (FAutoEncoding=aeContentDefined)
+    and (VarType(Data)=(varArray or varByte)) then
+   begin
+    CheckSendStart(false);
+    SendBuf(VarArrayLock(Data)^,VarArrayHighBound(Data,1)-VarArrayLowBound(Data,1)+1);
+    VarArrayUnlock(Data);
+   end
+  else
+    SendStr(VarToWideStrX(Data));
 end;
 
 procedure TXxmGeneralContext.Send(Data: OleVariant);
