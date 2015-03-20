@@ -346,9 +346,10 @@ begin
         inc(l,$80);
         SetLength(t,l);
        end;
-      case char(s[p]) of
+      case s[p] of
         #0..#31,'"','#','$','%','&','''','+','/',
-        '<','>','?','@','[','\',']','^','`','{','|','}','´':
+        '<','>','?','@','[','\',']','^','`','{','|','}',
+        #$80..#$FF:
          begin
           t[q]:='%';
           t[q+1]:=Hex[byte(s[p]) shr 4];
@@ -379,19 +380,19 @@ begin
   p:=1;
   while (p<=l) do
    begin
-    case char(Data[p]) of
+    case Data[p] of
       '+':t[q]:=' ';
       '%':
        begin
         inc(p);
         b:=0;
-        case char(Data[p]) of
+        case Data[p] of
           '0'..'9':inc(b,byte(Data[p]) and $F);
           'A'..'F','a'..'f':inc(b,(byte(Data[p]) and $F)+9);
         end;
         inc(p);
         b:=b shl 4;
-        case char(Data[p]) of
+        case Data[p] of
           '0'..'9':inc(b,byte(Data[p]) and $F);
           'A'..'F','a'..'f':inc(b,(byte(Data[p]) and $F)+9);
         end;
@@ -437,14 +438,11 @@ begin
 end;
 
 function XxmVersion: TXxmVersion;
-var
-  s:string;
 begin
-  s:=XxmRevision;
   Result.Major:=1;
   Result.Minor:=2;
-  Result.Release:=2;
-  Result.Build:=StrToInt(Copy(s,7,Length(s)-8));
+  Result.Release:=3;
+  Result.Build:=StrToInt(Copy(XxmRevision,7,Length(XxmRevision)-8));
 end;
 
 { TXxpProject }
