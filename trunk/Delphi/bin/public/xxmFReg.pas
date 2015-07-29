@@ -1,19 +1,21 @@
 unit xxmFReg;
 
-interface
-
-uses xxm, Classes;
-
 {
 
   xxm Fragment Registry
 
-This is a default fragment registry. You are free to change this one  or create a new one for your project.
-The TxxmProject (xxmp.pas) calls GetClass with the page section of the URL, or can pre-process the URL.
+This is a default fragment registry. You are free to change this one
+or create a new one for your project.
+The TxxmProject (xxmp.pas) calls GetClass with the page section
+of the URL, or can pre-process the URL.
 
   $Rev$ $Date$
 
 }
+
+interface
+
+uses xxm, Classes;
 
 type
   TXxmFragmentClass=class of TXxmFragment;
