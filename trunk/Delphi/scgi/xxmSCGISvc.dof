@@ -121,7 +121,7 @@ Locale=1033
 CodePage=1252
 [Version Info Keys]
 CompanyName=
-FileDescription=xxm SCGI Server (AutoBuild)
+FileDescription=xxm SCGI Service
 FileVersion=1.2.3.400
 InternalName=
 LegalCopyright=

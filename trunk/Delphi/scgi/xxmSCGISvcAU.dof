@@ -100,7 +100,7 @@ Conditionals=
 DebugSourceDirs=
 UsePackages=0
 [Parameters]
-RunParams=
+RunParams=-install
 HostApplication=
 Launcher=
 UseLauncher=0
@@ -121,7 +121,7 @@ Locale=1033
 CodePage=1252
 [Version Info Keys]
 CompanyName=
-FileDescription=xxm SCGI Server (AutoBuild)
+FileDescription=xxm SCGI Service (AutoUpdate)
 FileVersion=1.2.3.400
 InternalName=
 LegalCopyright=
