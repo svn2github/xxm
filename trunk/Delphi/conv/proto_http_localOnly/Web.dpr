@@ -27,6 +27,7 @@ uses
   xxmCommonUtils in '[[XxmSourcePath]]\common\xxmCommonUtils.pas',
   xxmContext in '[[XxmSourcePath]]\common\xxmContext.pas',
   xxmReadHandler in '[[XxmSourcePath]]\http\xxmReadHandler.pas',
+  xxmLocalOnly in '[[XxmSourcePath]]\conv\proto_http_localOnly\xxmLocalOnly.pas',
   xxmSock in '[[XxmSourcePath]]\http\xxmSock.pas',
   xxmThreadPool in '[[XxmSourcePath]]\common\xxmThreadPool.pas',
   xxmKeptCon in '[[XxmSourcePath]]\http\xxmKeptCon.pas',
@@ -41,6 +42,11 @@ uses
 [[ProjectHeader]]
 begin
   XxmProjectName:='[[ProjectName]]';
+  HttpListenPort:=8877;
+  HttpBindIPv4:='127.0.0.1';
+  HttpBindIpV6:='::1';
+  XxmStartURL;
   [[ProjectBody]]
-  XxmRunServer;
+  if XxmGlobalMutex(XxmProjectName) then
+    XxmRunServer;
 end.

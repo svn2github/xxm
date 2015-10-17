@@ -292,11 +292,7 @@ begin
       end;
 
   except
-    on EXxmPageRedirected do
-     begin
-      ForceStatus(301,'Moved Permanently');
-      //SendRaw('Redirected to <a href=""></a>')?
-     end;
+    on EXxmPageRedirected do Flush;
 
     on EXxmAutoBuildFailed do
      begin
@@ -566,7 +562,7 @@ begin
     //TYMED_ISTORAGE?
     else
       raise EXxmUnknownPostDataTymed.Create(
-        'PostData has unkown TYMED '+IntToHex(stgmed.tymed,8));
+        'PostData has unsupported TYMED '+IntToHex(stgmed.tymed,8));
   end;
 end;
 
@@ -595,6 +591,8 @@ begin
   else
     s:=RedirectURL;
   OleCheck(ProtSink.ReportResult(INET_E_REDIRECTING,0,PWideChar(s)));
+  ForceStatus(301,'Moved Permanently');
+  //SendRaw('Redirected to <a href=""></a>')?
   raise EXxmPageRedirected.Create(s);
 end;
 
