@@ -418,7 +418,7 @@ end;
 procedure TXxmSynaContext.PostExecute;
 begin
   case Next of
-    ntNormal:
+    ntNormal,ntResumeDisconnect:
       FSocket.CloseSocket;//Disconnect
     ntKeep,ntResume,ntResumeDrop:
      begin
