@@ -347,7 +347,10 @@ begin
         IncludeX(FDropFragment,FDropValue);
        end;
       ntResumeSocket:
+       begin
+        Next:=ntResumeDisconnect;//ntNormal?
         (IUnknown(FResumeValue) as IXxmRawSocket).DataReady(0);
+       end;
       ntResumeDisconnect:
         (IUnknown(FResumeValue) as IXxmRawSocket).Disconnect;
       else
