@@ -30,4 +30,12 @@ Here, <code>TXxmdemo</code> implements <code>IXxmProjectEvents2</code> to perfor
 <dd>Is used by the suspend call to include when <code>CheckEvent</code> returns true. Shows information about the event and suspends the context again, up till the tenth call.</dd>
 <dt>Drop.xxmi</dt>
 <dd>Is included when the context was suspended for longer than the specified maximum interval without <code>CheckEvent</code> returning true.</dd>
+<dt>ES.xxm</dt>
+<dd>Similar to <i>Default.xxm</i> but uses an <code>EventSource</code> object (if your browser supports this) to process a <code>text/event-stream</code> request.</dd>
+<dt>ES1.xxm</dt>
+<dd>The end-point for <code>EventSource</code>, sets the content type to <code>text/event-stream</code> format, then suspends the context.</dd>
+<dt>ES2.xxmi</dt>
+<dd>Similar to <i>Next.xxmi</i>, but offers data in <code>text/event-stream</code> format.</dd>
+<dt>ES3.xxmi</dt>
+<dd>Similar to <i>Drop.xxmi</i>, but offers data in <code>text/event-stream</code> format.</dd>
 </dl>
