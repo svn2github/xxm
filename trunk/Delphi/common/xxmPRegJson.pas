@@ -316,7 +316,8 @@ begin
             FProjects[i].Alias:=VarToStr(d1['alias']);
             if FProjects[i].Alias='' then
              begin
-              p:=VarToStr(d1['path']);
+              p:=StringReplace(
+                VarToStr(d1['path']),'/',PathDelim,[rfReplaceAll]);
               if p='' then raise EXxmProjectNotFound.Create(StringReplace(
                 SXxmProjectNotFound,'__',e.Key,[]));
               {
