@@ -15,6 +15,8 @@ to determine which URL the WebSocket will be available with.
   $Rev$ $Date$
 
 }
+{$D-}
+{$L-}
 
 interface
 
@@ -53,8 +55,8 @@ type
     procedure IXxmRawSocket.Disconnect=ClosingSocket;
     
     //
-    procedure SendText(const Data:UTF8String);
-    procedure SendBinary(const Data:UTF8String);
+    procedure SendText(const Data:UTF8String); virtual;
+    procedure SendBinary(const Data:UTF8String); virtual;
 
     property MaxFragmentSize:int64 read FMaxFragmentSize write FMaxFragmentSize;
   end;
