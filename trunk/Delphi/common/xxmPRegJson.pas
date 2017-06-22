@@ -55,7 +55,7 @@ var
 
 implementation
 
-uses Registry, Variants, Classes, xxmHeaders, xxmContext;
+uses Registry, Variants, Classes, xxmHeaders, xxmContext, xxmConvert2;
 
 resourcestring
   SXxmProjectRegistryError='Could not open project registry "__"';
@@ -201,8 +201,21 @@ begin
   //assert in FLock
   //assert CoInitialize called
   Result:=JSON;
-  f:=TFileStream.Create(FRegFilePath+XxmRegFileName,
-    fmOpenRead or fmShareDenyWrite);
+
+  //TRANSITIONAL
+  try
+    f:=TFileStream.Create(FRegFilePath+XxmRegFileName,
+      fmOpenRead or fmShareDenyWrite);
+
+  except
+    on EFOpenError do
+     begin
+      ConvertProjectReg;
+      f:=TFileStream.Create(FRegFilePath+XxmRegFileName,
+        fmOpenRead or fmShareDenyWrite);
+     end;
+  end;
+
   try
     i:=f.Size;
     SetLength(s,i);
