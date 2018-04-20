@@ -16,7 +16,7 @@ type
     ['{78786D00-0000-0002-C000-000000000002}']
     function GetProjectName: WideString;
     property Name: WideString read GetProjectName;
-    function LoadPage(Context: IXxmContext; Address: WideString): IXxmFragment;
+    function LoadPage(Context: IXxmContext; const Address: WideString): IXxmFragment;
     function LoadFragment(Context: IXxmContext;
       Address, RelativeTo: WideString):IXxmFragment;
     procedure UnloadFragment(Fragment: IXxmFragment);
@@ -147,13 +147,13 @@ type
 
   IXxmProjectEvents = interface
     ['{78786D00-0000-0013-C000-000000000013}']
-    function HandleException(Context: IXxmContext; PageClass: WideString;
+    function HandleException(Context: IXxmContext; const PageClass: WideString;
       Ex: Exception): boolean;
   end;
 
   IXxmProjectEvents1 = interface
     ['{78786D00-0000-0014-C000-000000000014}']
-    function HandleException(Context: IXxmContext; PageClass,
+    function HandleException(Context: IXxmContext; const PageClass,
       ExceptionClass, ExceptionMessage: WideString): boolean;
     procedure ReleasingContexts;
     procedure ReleasingProject;
