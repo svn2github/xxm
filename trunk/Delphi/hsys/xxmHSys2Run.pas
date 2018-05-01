@@ -51,6 +51,8 @@ begin
   HttpCheck(HttpCreateServerSession(HTTPAPI_VERSION_2_0,hrs,0));
   HttpCheck(HttpCreateUrlGroup(hrs,hrg,0));
 
+  XxmProjectCache:=TXxmProjectCacheJson.Create;
+
   //defaults
   Port:=80;
   SecurePort:=0;//443;
@@ -106,9 +108,10 @@ begin
   //TODO: load from xxm.xml?
   if c=0 then raise Exception.Create('No projects loaded');
 
-  XxmProjectCache:=TXxmProjectCacheJson.Create;
   ContextPool:=TXxmContextPool.Create(TXxmHSysContext);
   PageLoaderPool:=TXxmPageLoaderPool.Create(Threads);
+
+  //HTTP_AUTH_ENABLE_NTLM here? tried but a drag to get csAuthUser
 
   hrq.Flags:=HTTP_PROPERTY_FLAG_PRESENT;
   HttpCheck(HttpCreateRequestQueue(HTTPAPI_VERSION_2_0,nil,nil,0,hrq.RequestQueueHandle));
