@@ -51,8 +51,6 @@ begin
   HttpCheck(HttpCreateServerSession(HTTPAPI_VERSION_2_0,hrs,0));
   HttpCheck(HttpCreateUrlGroup(hrs,hrg,0));
 
-  XxmProjectCache:=TXxmProjectCacheJson.Create;
-
   //defaults
   Port:=80;
   SecurePort:=0;//443;
@@ -108,6 +106,7 @@ begin
   //TODO: load from xxm.xml?
   if c=0 then raise Exception.Create('No projects loaded');
 
+  XxmProjectCache:=TXxmProjectCacheJson.Create;
   ContextPool:=TXxmContextPool.Create(TXxmHSysContext);
   PageLoaderPool:=TXxmPageLoaderPool.Create(Threads);
 
