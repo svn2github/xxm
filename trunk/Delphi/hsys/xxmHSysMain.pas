@@ -3,10 +3,10 @@ unit xxmHSysMain;
 interface
 
 uses
-  SysUtils, ActiveX, xxm, Classes, xxmContext, xxmPReg, xxmThreadPool,
+  Windows, SysUtils, ActiveX, Classes, xxm, xxmContext, xxmThreadPool,
   {$IFDEF HSYS1}httpapi1,{$ENDIF}
   {$IFDEF HSYS2}httpapi2,{$ENDIF}
-  xxmPRegJson, xxmParams, xxmParUtils, xxmHeaders;
+  xxmPReg, xxmPRegJson, xxmParams, xxmParUtils, xxmHeaders;
 
 const
   XxmHSysContextDataSize=$1000;
@@ -63,6 +63,9 @@ type
     function GetSessionID:WideString; override;
     procedure SendHeader; override;
     function GetCookie(const Name:WideString):WideString; override;
+    {$IFDEF HSYS2}
+    function GetRawSocket: IStream; override;
+    {$ENDIF}
 
     function GetProjectEntry:TXxmProjectEntry; override;
     function GetRequestHeader(const Name: WideString): WideString; override;
@@ -83,6 +86,48 @@ type
     procedure Load(HSysQueue:THandle);
   end;
 
+{$IFDEF HSYS2}
+const
+  RawSocketBufferSize=$10000;
+
+type
+  TRawSocketData=class(TInterfacedObject, IStream, IXxmRawSocket)
+  private
+    FHSysQueue:THandle;
+    FRequestID:THTTP_REQUEST_ID;
+    FBuffer:array[0..RawSocketBufferSize-1] of byte;
+    FBuffer1,FBuffer2:cardinal;
+    FCallOut:boolean;
+    FCall:TOverlapped;
+  public
+    constructor Create(HSysQueue:THandle;RequestID:THTTP_REQUEST_ID);
+    destructor Destroy; override;
+    { IStream }
+    function Seek(dlibMove: Largeint; dwOrigin: Longint;
+      out libNewPosition: Largeint): HResult; stdcall;
+    function SetSize(libNewSize: Largeint): HResult; stdcall;
+    function CopyTo(stm: IStream; cb: Largeint; out cbRead: Largeint;
+      out cbWritten: Largeint): HResult; stdcall;
+    function Commit(grfCommitFlags: Longint): HResult; stdcall;
+    function Revert: HResult; stdcall;
+    function LockRegion(libOffset: Largeint; cb: Largeint;
+      dwLockType: Longint): HResult; stdcall;
+    function UnlockRegion(libOffset: Largeint; cb: Largeint;
+      dwLockType: Longint): HResult; stdcall;
+    function Stat(out statstg: TStatStg; grfStatFlag: Longint): HResult;
+      stdcall;
+    function Clone(out stm: IStream): HResult; stdcall;
+    { ISequentialStream }
+    function Read(pv: Pointer; cb: Longint; pcbRead: PLongint): HResult;
+      stdcall;
+    function Write(pv: Pointer; cb: Longint; pcbWritten: PLongint): HResult;
+      stdcall;
+    { IXxmRawSocket }
+    function DataReady(TimeoutMS: cardinal): boolean;
+    procedure Disconnect;
+  end;
+{$ENDIF}
+
   EXxmMaximumHeaderLines=class(Exception);
   EXxmContextStringUnknown=class(Exception);
   EXxmUnknownPostDataTymed=class(Exception);
@@ -90,7 +135,7 @@ type
 
 implementation
 
-uses Windows, Variants, ComObj, xxmCommonUtils, xxmHSysHeaders, WinSock,
+uses Variants, ComObj, xxmCommonUtils, xxmHSysHeaders, WinSock,
   Math, xxmSSPI;
 
 resourcestring
@@ -296,6 +341,7 @@ end;
 function TXxmHSysContext.Connected: boolean;
 begin
   Result:=true;//HttpSend* fails on disconnect
+  //TODO: async HttpWaitForDisconnect?
 end;
 
 function TXxmHSysContext.ContextString(cs: TXxmContextString): WideString;
@@ -328,7 +374,7 @@ var
 begin
   x:=THTTP_HEADER_ID(-1);
   case cs of
-    csVersion:Result:=SelfVersion;//+' '+??HttpHeaderServer ? 'Microsoft-HTTPAPI/1.0'?
+    csVersion:Result:=SelfVersion;//+' '+??HttpHeaderServer ? 'Microsoft-HTTPAPI/?.0'?
     csExtraInfo:Result:='';//???
     csVerb:
       if FReq.Verb in [HttpVerbUnparsed,HttpVerbUnknown,HttpVerbInvalid] then
@@ -443,7 +489,7 @@ end;
 
 procedure TXxmHSysContext.SendHeader;
 var
-  l:cardinal;
+  l,f:cardinal;
 const
   AutoEncodingCharset:array[TXxmAutoEncoding] of string=(
     '',//aeContentDefined
@@ -456,7 +502,7 @@ begin
   //TODO: Connection keep?
   FRes.StatusCode:=StatusCode;
   CacheString(StatusText,FRes.ReasonLength,FRes.pReason);
-  if FAutoEncoding<>aeContentDefined then
+  if (FContentType<>'') and (FAutoEncoding<>aeContentDefined) then
     CacheString(FContentType+AutoEncodingCharset[FAutoEncoding],
       FRes.Headers.KnownHeaders[HttpHeaderContentType].RawValueLength,
       FRes.Headers.KnownHeaders[HttpHeaderContentType].pRawValue);
@@ -466,9 +512,12 @@ begin
     FRes.Headers.pUnknownHeaders:=nil
   else
     FRes.Headers.pUnknownHeaders:=@FUnknownHeaders[0];
+  f:=HTTP_SEND_RESPONSE_FLAG_MORE_DATA;
+  {$IFDEF HSYS2}
+  if StatusCode=101 then f:=f or HTTP_SEND_RESPONSE_FLAG_OPAQUE;
+  {$ENDIF}
   HttpCheck(HttpSendHttpResponse(FHSysQueue,FReq.RequestId,
-    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
-    @FRes,nil,l,nil,0,nil,nil));
+    f,@FRes,nil,l,nil,0,nil,nil));
   inherited;
 end;
 
@@ -639,6 +688,35 @@ begin
       raise ERangeError.Create('SetResponseHeaderIndex: Out of range');
 end;
 
+{$IFDEF HSYS2}
+function TXxmHSysContext.GetRawSocket: IStream;
+var
+  i:integer;
+begin
+  if FReqHeaders['Upgrade']='' then Result:=nil else
+   begin
+    FContentType:='';
+
+    //fix Connection header!
+    if FRes.Headers.KnownHeaders[HttpHeaderConnection].RawValueLength<>0 then
+     begin
+      i:=Length(FUnknownHeaders);
+      SetLength(FUnknownHeaders,i+1);
+      CacheString('Connection',FUnknownHeaders[i].NameLength,
+        FUnknownHeaders[i].pName);
+      FUnknownHeaders[i].RawValueLength:=FRes.Headers.KnownHeaders[HttpHeaderConnection].RawValueLength;
+      FUnknownHeaders[i].pRawValue:=FRes.Headers.KnownHeaders[HttpHeaderConnection].pRawValue;
+      FRes.Headers.KnownHeaders[HttpHeaderConnection].RawValueLength:=0;
+      FRes.Headers.KnownHeaders[HttpHeaderConnection].pRawValue:=nil;
+     end;
+
+    SetBufferSize(0);//!
+    CheckSendStart(false);
+    Result:=TRawSocketData.Create(FHSysQueue,FReq.RequestId);
+   end;
+end;
+{$ENDIF}
+
 { TXxmPostDataStream }
 
 constructor TXxmPostDataStream.Create(HSysQueue:THandle;
@@ -688,6 +766,173 @@ function TXxmPostDataStream.Write(const Buffer; Count: Integer): Integer;
 begin
   raise Exception.Create('Post data is read-only.');
 end;
+
+{$IFDEF HSYS2}
+
+{ TRawSocketData }
+
+constructor TRawSocketData.Create(HSysQueue: THandle;
+  RequestID: THTTP_REQUEST_ID);
+begin
+  inherited Create;
+  FHSysQueue:=HSysQueue;
+  FRequestID:=RequestID;
+  FBuffer1:=0;
+  FBuffer2:=0;
+  FCallOut:=false;
+  FCall.Internal:=0;
+  FCall.InternalHigh:=0;
+  FCall.Offset:=0;
+  FCall.OffsetHigh:=0;
+  FCall.hEvent:=CreateEvent(nil,true,false,nil);
+end;
+
+destructor TRawSocketData.Destroy;
+begin
+  FHSysQueue:=0;
+  FRequestID:=0;
+  //if FCallOut then abort?
+  CloseHandle(FCall.hEvent);
+  inherited;
+end;
+
+function TRawSocketData.Clone(out stm: IStream): HResult;
+begin
+  raise Exception.Create('TRawSocketData.Clone not supported');
+end;
+
+function TRawSocketData.Commit(grfCommitFlags: Integer): HResult;
+begin
+  raise Exception.Create('TRawSocketData.Commit not supported');
+end;
+
+function TRawSocketData.CopyTo(stm: IStream; cb: Largeint; out cbRead,
+  cbWritten: Largeint): HResult;
+begin
+  raise Exception.Create('TRawSocketData.CopyTo not supported');
+end;
+
+function TRawSocketData.LockRegion(libOffset, cb: Largeint;
+  dwLockType: Integer): HResult;
+begin
+  raise Exception.Create('TRawSocketData.LockRegion not supported');
+end;
+
+function TRawSocketData.Revert: HResult;
+begin
+  raise Exception.Create('TRawSocketData.Revert not supported');
+end;
+
+function TRawSocketData.Seek(dlibMove: Largeint; dwOrigin: Integer;
+  out libNewPosition: Largeint): HResult;
+begin
+  raise Exception.Create('TRawSocketData.Seek not supported');
+end;
+
+function TRawSocketData.SetSize(libNewSize: Largeint): HResult;
+begin
+  raise Exception.Create('TRawSocketData.SetSize not supported');
+end;
+
+function TRawSocketData.Stat(out statstg: TStatStg;
+  grfStatFlag: Integer): HResult;
+begin
+  raise Exception.Create('TRawSocketData.Stat not supported');
+end;
+
+function TRawSocketData.UnlockRegion(libOffset, cb: Largeint;
+  dwLockType: Integer): HResult;
+begin
+  raise Exception.Create('TRawSocketData.UnlockRegion not supported');
+end;
+
+function TRawSocketData.DataReady(TimeoutMS: cardinal): boolean;
+var
+  r,l:cardinal;
+begin
+  if not FCallOut then
+   begin
+    FBuffer1:=0;
+    ResetEvent(FCall.hEvent);
+    r:=HttpReceiveRequestEntityBody(FHSysQueue,FRequestId,0,
+      @FBuffer[0],RawSocketBufferSize,l,@FCall);
+    if r=ERROR_IO_PENDING then
+      FCallOut:=true
+    else
+      HttpCheck(r);
+   end;
+  r:=WaitForSingleObject(FCall.hEvent,TimeoutMS);
+  case r of
+    WAIT_OBJECT_0:
+     begin
+      FCallOut:=false;
+      if not GetOverlappedResult(FHSysQueue,FCall,FBuffer2,false) then
+        RaiseLastOSError;
+      Result:=true;//Result:=FBuffer2<>0;
+     end;
+    WAIT_TIMEOUT:
+      Result:=false;
+    //WAIT_FAILED
+    else
+     begin
+      RaiseLastOSError;
+      Result:=false;//counter warning
+     end;
+  end;
+end;
+
+function TRawSocketData.Read(pv: Pointer; cb: Integer; pcbRead: PLongint): HResult;
+var
+  l:cardinal;
+begin
+  if FCallOut then
+   begin
+    if not GetOverlappedResult(FHSysQueue,FCall,FBuffer2,true) then
+      RaiseLastOSError;
+    FCallOut:=false;
+   end;
+  if FBuffer2=0 then
+    HttpCheck(HttpReceiveRequestEntityBody(FHSysQueue,FRequestId,0,pv,cb,l,nil))
+  else
+   begin
+    l:=FBuffer2-FBuffer1;
+    if cardinal(cb)<=FBuffer2-FBuffer1 then l:=cardinal(cb);
+    Move(FBuffer[FBuffer1],pv^,l);
+    inc(l,FBuffer1);
+    if FBuffer1=FBuffer2 then
+     begin
+      FBuffer1:=0;
+      FBuffer2:=0;
+     end;
+   end;
+  if pcbRead<>nil then pcbRead^:=l;
+  Result:=S_OK;
+end;
+
+function TRawSocketData.Write(pv: Pointer; cb: Integer; pcbWritten: PLongint): HResult;
+var
+  c:THTTP_DATA_CHUNK;
+  l:cardinal;
+begin
+  ZeroMemory(@c,SizeOf(THTTP_DATA_CHUNK));
+  c.DataChunkType:=HttpDataChunkFromMemory;
+  c.pBuffer:=pv;
+  c.BufferLength:=cb;
+  l:=cb;
+  HttpCheck(HttpSendResponseEntityBody(FHSysQueue,FRequestID,
+    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,1,@c,l,nil,0,nil,nil));
+  if pcbWritten<>nil then pcbWritten^:=l;
+  Result:=S_OK;
+end;
+
+procedure TRawSocketData.Disconnect;
+begin
+  HttpSendResponseEntityBody(FHSysQueue,FRequestId,
+    HTTP_SEND_RESPONSE_FLAG_DISCONNECT,//if keep-alive?
+    0,nil,cardinal(nil^),nil,0,nil,nil);
+end;
+
+{$ENDIF}
 
 initialization
   StatusBuildError:=503;//TODO: from settings
