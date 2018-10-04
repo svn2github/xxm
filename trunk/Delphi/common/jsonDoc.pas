@@ -6,7 +6,7 @@ Copyright 2015-2018 Stijn Sanders
 Made available under terms described in file "LICENSE"
 https://github.com/stijnsanders/jsonDoc
 
-v1.1.3
+v1.1.7
 
 }
 unit jsonDoc;
@@ -42,8 +42,7 @@ Define here or in the project settings
 
 interface
 
-uses
-  ComObj, ActiveX, SysUtils, WinTypes;
+uses SysUtils;
 
 const
   //COM GUID's
@@ -313,7 +312,7 @@ type
   TJSONArray class
   Default ILightArray implementation
 }
-  TJSONArray = class(TJSONImplBaseObj, IJSONArray)
+  TJSONArray = class(TJSONImplBaseObj, IJSONArray, IJSONEnumerable)
   private
     FData:array of Variant;
   protected
@@ -323,6 +322,7 @@ type
     function JSONToString: WideString; stdcall;
     function IJSONArray.ToString=JSONToString;
     function v0(Index: integer): pointer; stdcall;
+    function NewEnumerator: IJSONEnumerator; stdcall;
   public
     constructor Create(Size: integer);
   end;
@@ -355,7 +355,7 @@ type
   TJSONDocArray = class(TJSONImplBaseObj, IJSONArray, IJSONDocArray)
   private
     FItems:array of WideString;
-    FItemsCount,FItemsSize,FTotalLength,FCurrentIndex:integer;
+    FItemsCount,FItemsSize,FCurrentIndex:integer;
     FCurrent:Variant;
   protected
     //IJSONArray
@@ -432,8 +432,7 @@ type
 
 implementation
 
-uses
-  Classes, Variants, Windows;
+uses Variants, Windows;
 
 procedure VarMove(var Dest, Src: Variant);
 begin
@@ -663,7 +662,9 @@ var
   end;
   function ExVicinity(di:integer):WideString;
   const
-    VicinityExtent=8;
+    VicinityExtent=12;
+  var
+    i:integer;
   begin
     if di<=VicinityExtent then
       Result:=#13#10'(#'+IntToStr(di)+')"'+Copy(jsonData,1,di-1)+
@@ -672,6 +673,8 @@ var
       Result:=#13#10'(#'+IntToStr(di)+')"...'+
         Copy(jsonData,di-VicinityExtent,VicinityExtent)+
         ' >>> '+jsonData[di]+' <<< '+Copy(jsonData,di+1,VicinityExtent)+'"';
+    for i:=1 to Length(Result) do
+      if word(Result[i])<32 then Result[i]:='|';
   end;
   procedure Expect(c:WideChar;const msg:string);
   begin
@@ -685,7 +688,7 @@ var
       raise EJSONDecodeException.Create(msg+ExVicinity(i));
     {$ENDIF}
   end;
-  procedure GetStringIndexes(var i1,i2:integer);
+    procedure GetStringIndexes(var i1,i2:integer);
   begin
     //assert jsonData[i]='"'
     i1:=i;
@@ -1071,6 +1074,7 @@ begin
                   else
                     v:=Null;
                   if (TVarData(v).VType in [varDispatch,varUnknown]) and
+                    (TVarData(v).VUnknown<>nil) and
                     (IUnknown(v).QueryInterface(IID_IJSONDocument,d1)=S_OK) then
                     d1:=nil
                   else
@@ -1093,6 +1097,7 @@ begin
                   v:=dr.ReUse(key);
                   dr:=nil;
                   if (TVarData(v).VType in [varDispatch,varUnknown]) and
+                    (TVarData(v).VUnknown<>nil) and
                     (IUnknown(v).QueryInterface(IID_IJSONDocArray,da)=S_OK) then
                    begin
                     da0:=stackIndex+1;
@@ -1382,6 +1387,8 @@ begin
       if stackIndex<>-1 then raise EJSONDecodeException.Create(
         'JSON with '+IntToStr(stackIndex+1)+' objects or arrays not closed');
       {$ENDIF}
+      if (i<=l) and (SkipWhiteSpace<>#0) then raise EJSONDecodeException.Create(
+        'JSON has unexpected data after root document '+ExVicinity(i));
     finally
       {$if CompilerVersion >= 24}
       FormatSettings.DecimalSeparator:=ods;
@@ -1865,6 +1872,9 @@ begin
       if TVarData(FElements[i].Value).VType=varUnknown then
        begin
         uu:=IUnknown(FElements[i].Value);
+        if uu=nil then
+          VarClear(FElements[i].Value)
+        else
         if uu.QueryInterface(IID_IJSONDocument,d)=S_OK then
          begin
           d.Clear;
@@ -1905,6 +1915,9 @@ begin
       if TVarData(FElements[GotIndex].Value).VType=varUnknown then
        begin
         uu:=IUnknown(FElements[GotIndex].Value);
+        if uu=nil then
+          VarClear(FElements[GotIndex].Value)
+        else
         if uu.QueryInterface(IID_IJSONDocument,d)=S_OK then
          begin
           d.Clear;
@@ -2308,6 +2321,11 @@ begin
   {$ENDIF}
 end;
 
+function TJSONArray.NewEnumerator: IJSONEnumerator;
+begin
+  Result:=TJSONArrayEnumerator.Create(Self);
+end;
+
 { TJSONArrayEnumerator }
 
 constructor TJSONArrayEnumerator.Create(const Data: IJSONArray);
@@ -2380,7 +2398,6 @@ begin
   inherited Create;
   FItemsCount:=0;
   FItemsSize:=0;
-  FTotalLength:=0;
 end;
 
 destructor TJSONDocArray.Destroy;
@@ -2437,7 +2454,6 @@ end;
 
 procedure TJSONDocArray.Set_Item(Index: integer; const Value: Variant);
 var
-  v:WideString;
   d:IJSONDocument;
 begin
   {$IFDEF JSONDOC_THREADSAFE}
@@ -2446,19 +2462,18 @@ begin
   {$ENDIF}
     if (Index<0) or (Index>=FItemsCount) then
       raise ERangeError.Create('Index out of range');
-    dec(FTotalLength,Length(FItems[Index]));
     case TVarData(Value).VType of
       varNull:
         FItems[Index]:='null';
       varUnknown:
-        if IUnknown(Value).QueryInterface(IID_IJSONDocument,d)=S_OK then
+        if (TVarData(Value).VUnknown<>nil) and
+          (IUnknown(Value).QueryInterface(IID_IJSONDocument,d)=S_OK) then
           FItems[Index]:=d.ToString
         else raise EJSONEncodeException.Create(
           'JSONDocArray.Set_Item requires IJSONDocument instances');
       else raise EJSONEncodeException.Create(
         'JSONDocArray.Set_Item requires IJSONDocument instances');
     end;
-    inc(FTotalLength,Length(v));
   {$IFDEF JSONDOC_THREADSAFE}
   finally
     LeaveCriticalSection(FLock);
@@ -2504,7 +2519,6 @@ begin
       FItems[FItemsCount]:='null'
     else
       FItems[FItemsCount]:=Doc.ToString;
-    inc(FTotalLength,Length(FItems[FItemsCount]));
     Result:=FItemsCount;
     inc(FItemsCount);
   {$IFDEF JSONDOC_THREADSAFE}
@@ -2527,7 +2541,6 @@ begin
      end;
     //TODO: check valid JSON?
     FItems[FItemsCount]:=Data;
-    inc(FTotalLength,Length(Data));
     Result:=FItemsCount;
     inc(FItemsCount);
   {$IFDEF JSONDOC_THREADSAFE}
@@ -2584,7 +2597,10 @@ begin
       Result:='[]'
     else
      begin
-      SetLength(Result,FTotalLength+1+FItemsCount);
+      l:=FItemsCount+1;
+      for i:=0 to FItemsCount-1 do
+        inc(l,Length(FItems[i]));
+      SetLength(Result,l);
       i:=0;
       x:=1;
       while i<FItemsCount do
@@ -2713,7 +2729,8 @@ begin
       varNull,varEmpty:
         Result:=TJSONEnumerator.Create(nil);//has .EOF=true
       varUnknown:
-        if IUnknown(x).QueryInterface(IID_IJSONEnumerable,e)=S_OK then
+        if (TVarData(x).VUnknown<>nil) and
+          (IUnknown(x).QueryInterface(IID_IJSONEnumerable,e)=S_OK) then
           Result:=e.NewEnumerator
         else
           raise EJSONException.Create('No supported interface found on object');
@@ -2756,6 +2773,7 @@ end;
 function ja(const Item:Variant): IJSONArray;
 begin
   if (TVarData(Item).VType=varUnknown) and
+    (TVarData(Item).VUnknown<>nil) and
     (IUnknown(Item).QueryInterface(IID_IJSONArray,Result)=S_OK) then
     //ok!
   else
